@@ -1,5 +1,5 @@
-import { notImplemented } from "@/lib/api/respond";
+import { plansCrud } from "@/features/auth-data/resources";
 
-// Owner: authData – replace this stub. Contract: CONTRACTS.md section 4.
-export const GET = () => notImplemented("GET /api/plans");
-export const POST = () => notImplemented("POST /api/plans");
+// Contract: CONTRACTS.md section 4. Logic lives in src/features/auth-data/crud.ts.
+export const GET = plansCrud.GET_LIST;
+export const POST = plansCrud.POST;

@@ -3,3 +3,4 @@
  * (never from deep paths). Export services/components here when they are stable.
  */
 export { authDataNav } from "./nav";
+export { SignOutButton } from "./components/sign-out-button";

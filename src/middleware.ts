@@ -1,9 +1,10 @@
 import type { NextRequest } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
+import { guardRequest } from "@/lib/auth/middleware-guard";
 
-// Owner after foundation: Member 1 (route guards). Keep the session refresh call.
+// Owner: Member 1 (route guards). guardRequest() refreshes the Supabase session cookie AND applies the
+// sign-in / role rules in src/lib/auth/guards.ts. API routes are not redirected: they use authorize().
 export async function middleware(request: NextRequest) {
-  return updateSession(request);
+  return guardRequest(request);
 }
 
 export const config = {

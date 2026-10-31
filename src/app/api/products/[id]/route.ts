@@ -1,6 +1,5 @@
-import { notImplemented } from "@/lib/api/respond";
+import { productsCrud } from "@/features/auth-data/resources";
 
-// Owner: authData – replace this stub. Contract: CONTRACTS.md section 4.
-export const GET = () => notImplemented("GET /api/products/[id]");
-export const PATCH = () => notImplemented("PATCH /api/products/[id]");
-export const DELETE = () => notImplemented("DELETE /api/products/[id]");
+export const GET = productsCrud.GET_ONE;
+export const PATCH = productsCrud.PATCH;
+export const DELETE = productsCrud.DELETE;
