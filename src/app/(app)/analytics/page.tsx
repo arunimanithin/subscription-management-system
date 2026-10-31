@@ -1,5 +1,9 @@
-import { ModulePlaceholder } from "@/components/shared/module-placeholder";
+import { getDashboardData } from "@/features/intelligence/services/dashboard-service";
+import { AnalyticsView } from "@/features/intelligence/analytics/analytics-view";
 
-export default function AnalyticsPage() {
-  return <ModulePlaceholder module="intelligence" title="Analytics" description="Revenue intelligence." />;
+export const metadata = { title: "Analytics | SubscriptIQ" };
+
+export default async function AnalyticsPage() {
+  const data = await getDashboardData();
+  return <AnalyticsView data={data} />;
 }
