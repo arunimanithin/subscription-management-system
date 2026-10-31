@@ -24,7 +24,7 @@ import type {
   LeakAlertType,
   LeakRadarSummary,
 } from "../services/leak-radar-service";
-import { calculateDeduplicatedRevenueAtRisk } from "../services/leak-radar-service";
+import { calculateDeduplicatedRevenueAtRisk } from "./revenue-at-risk";
 import { RadarSummaryCards } from "./radar-summary-cards";
 import { HealthBadge } from "../components/health-badge";
 import { Button } from "@/components/ui/button";

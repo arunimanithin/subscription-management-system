@@ -1,5 +1,8 @@
 import { getSupabaseEnv } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
+import { calculateDeduplicatedRevenueAtRisk } from "../radar/revenue-at-risk";
+
+export { calculateDeduplicatedRevenueAtRisk };
 
 export type LeakAlertType =
   | "overdue_invoice"
@@ -170,54 +173,6 @@ const MOCK_LEAK_ALERTS: LeakAlert[] = [
     detectedAt: "2026-10-24T08:00:00Z",
   },
 ];
-
-/**
- * Calculates total revenue at risk.
- * Strict rule: Count each invoice or subscription only once.
- * If several alerts hit the same entity, use the highest-severity alert's amount.
- */
-export function calculateDeduplicatedRevenueAtRisk(alerts: LeakAlert[]): number {
-  const severityRank: Record<LeakAlertSeverity, number> = {
-    high: 3,
-    medium: 2,
-    low: 1,
-  };
-
-  // Only consider open alerts for active revenue at risk
-  const openAlerts = alerts.filter((a) => a.status === "open");
-
-  // Map each unique entity (entityType:entityId) to its highest-severity alert
-  const entityMap = new Map<string, { severity: number; amount: number }>();
-
-  for (const alert of openAlerts) {
-    const key = `${alert.entityType}:${alert.entityId}`;
-    const currentRank = severityRank[alert.severity];
-    const existing = entityMap.get(key);
-
-    if (!existing) {
-      entityMap.set(key, { severity: currentRank, amount: alert.revenueAtRisk });
-    } else {
-      // If higher severity, overwrite amount with this alert's amount
-      if (currentRank > existing.severity) {
-        entityMap.set(key, { severity: currentRank, amount: alert.revenueAtRisk });
-      } else if (currentRank === existing.severity) {
-        // If equal severity, choose the higher amount
-        entityMap.set(key, {
-          severity: currentRank,
-          amount: Math.max(existing.amount, alert.revenueAtRisk),
-        });
-      }
-    }
-  }
-
-  // Sum unique entity amounts
-  let total = 0;
-  entityMap.forEach((val) => {
-    total += val.amount;
-  });
-
-  return Math.round(total);
-}
 
 /**
  * Fetch leak radar alerts and summary.
