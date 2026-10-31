@@ -1,9 +1,10 @@
 
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { safeNext } from "@/lib/auth/guards";
 
 export default function SignPage() {
   const [email, setEmail] = useState("");
@@ -11,6 +12,14 @@ export default function SignPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    // ?reset=1 is added after a successful password reset.
+    if (new URLSearchParams(window.location.search).get("reset") === "1") {
+      setNotice("Your password was updated. Sign in with the new password.");
+    }
+  }, []);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -28,7 +37,9 @@ export default function SignPage() {
       if (loginError) {
         setError(loginError.message);
       } else {
-        window.location.assign("/");
+        // Go back to the page they were trying to open (?next=...), else "/" which sends each role to its home.
+        const next = safeNext(new URLSearchParams(window.location.search).get("next"));
+        window.location.assign(next ?? "/");
       }
     } catch {
       setError(
@@ -96,6 +107,12 @@ export default function SignPage() {
   </Link>
 </div>
           </div>
+
+          {notice && (
+            <p role="status" className="text-sm text-green-700">
+              {notice}
+            </p>
+          )}
 
           {error && (
             <p role="alert" className="text-sm text-red-600">
