@@ -35,6 +35,30 @@ Requires Node.js 20+ (built and verified on Node 22).
    New sign-ups are always `customer`. To give a customer portal access, an admin/staff sets `customers.user_id` to that user's profile id.
 6. Locally: `cp .env.example .env.local` (PowerShell: `Copy-Item .env.example .env.local`) and fill in the two values. **Never** put the `service_role` key anywhere in this project.
 
+## 2b. Shared demo data (optional – everyone tests against the same data)
+
+`supabase/seed-demo.sql` loads realistic, clearly labelled **demo** data so every member can build and test their module without typing records by hand: 12 customers (1 inactive), 7 products, 9 plans (weekly/monthly/quarterly/yearly, 1 inactive), 12 subscriptions (active, trialing, past due, paused, cancelled, expired), 6 quotations (draft → converted), 67 invoices with line items (draft, open, partially paid, paid, overdue, void; percentage **and** fixed discounts; 0/5/12/18 % tax) and 67 payments (full, partial, several per invoice, failed, pending, refunded) spread over the last 12 months, so MRR, revenue trends, customer/subscription growth, outstanding and overdue amounts and recent payments all have data.
+
+**Safe by design:** demo rows have fixed ids (`de00000X-…`), numbers like `INV-DEMO-001`, names ending in "(Demo)" and e-mails ending in `@demo.subscriptiq.test`. Running the script again creates **no duplicates**. It never changes or deletes anything that is not demo data. No passwords, tokens or service-role keys are in it. **Development projects only – never run it on production.**
+
+**Team Lead, once per Supabase project:**
+1. In **Authentication → Users → Add user** (tick *Auto Confirm User*) create these six users, all with the same development password you choose (share it with the team in chat, never in Git):
+
+   | E-mail | Role after the seed | Use it to test |
+   |---|---|---|
+   | `admin@demo.subscriptiq.test` | admin | everything, including deletes and user management |
+   | `staff1@demo.subscriptiq.test`, `staff2@demo.subscriptiq.test` | staff | day-to-day work (create/edit, no deletes) |
+   | `customer1@demo.subscriptiq.test` | customer, linked to *Aarav Textiles (Demo)* | portal: sees only its own subscription, invoices and payments |
+   | `customer2@demo.subscriptiq.test` | customer, linked to *Kerala Spice Co (Demo)* | portal (a second customer, to check isolation) |
+   | `customer3@demo.subscriptiq.test` | customer, linked to *Nila Digital Studio (Demo)* | portal |
+
+2. **SQL Editor** → paste the whole of `supabase/seed-demo.sql` → Run. It ends with a notice such as `Demo data present: 12 customers, 12 subscriptions, 67 invoices, 67 payments`. (If it says some demo users are missing, create them and run the script again – roles and links are applied then.)
+3. Tell the team the data is in. Everyone signs in at the app with the accounts above. Nobody else needs to run anything.
+
+**What to try per module:** Member 1 – customers (one is inactive), products and plans (one inactive plan). Member 2 – subscriptions in every status and quotations in every status (`QUO-DEMO-06` is already converted to `SUB-DEMO-03`). Member 3 – invoices in every status, multi-payment and refunded/failed/pending payments; `SUB-DEMO-03` and `SUB-DEMO-04` are due today, so *Run recurring billing* creates two invoices. Member 4 – the views `monthly_revenue`, `subscription_item_mrr`, `overdue_invoices` and the customer/subscription growth data.
+
+To remove the demo data later, run `supabase/unseed-demo.sql` (it deletes only demo rows, including invoices or payments teammates created on them; delete the six demo users in Authentication → Users by hand). If your Supabase rejects the `.test` e-mail domain, replace `demo.subscriptiq.test` with another domain throughout the file before running.
+
 ## 3. Run
 
 ```bash
