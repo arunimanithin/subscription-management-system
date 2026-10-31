@@ -15,5 +15,5 @@ export {
   getSubscriptionTotal,
   formatCurrency,
 } from "./services/subscriptions";
-export { SubscriptionForm } from "./components/subscription-form";
+export { SubscriptionForm, type CustomerOption, type ProductOption, type PlanOption } from "./components/subscription-form";
 export { SubscriptionDetails } from "./components/subscription-details";

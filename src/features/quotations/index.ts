@@ -11,5 +11,5 @@ export {
   QUOTATION_STATUS_OPTIONS,
   formatCurrency,
 } from "./services/quotations";
-export { QuotationForm } from "./components/quotation-form";
+export { QuotationForm, type CustomerOption, type ProductOption, type PlanOption } from "./components/quotation-form";
 export { QuotationDetails } from "./components/quotation-details";

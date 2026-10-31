@@ -21,20 +21,35 @@ export interface CustomerOption {
 export interface ProductOption {
   id: string;
   name: string;
-  description?: string;
+  description?: string | null;
+  price?: number;
+  sku?: string | null;
+}
+
+export interface PlanOption {
+  id: string;
+  name: string;
   price: number;
-  sku?: string;
+  currency?: string;
+  product_id: string;
+  product_name?: string;
+  description?: string | null;
 }
 
 export function SubscriptionForm({
   customers,
   products,
+  plans = [],
 }: {
   customers: CustomerOption[];
   products: ProductOption[];
+  plans?: PlanOption[];
 }) {
   const router = useRouter();
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const defaultPlan = plans[0] ?? null;
+  const defaultProduct = products.find((product) => product.id === defaultPlan?.product_id) ?? products[0] ?? null;
 
   const form = useForm<CreateSubscriptionRequest>({
     resolver: zodResolver(createSubscriptionSchema),
@@ -48,13 +63,13 @@ export function SubscriptionForm({
       notes: "",
       items: [
         {
-          description: products[0]?.name ?? "Subscription item",
+          description: defaultPlan?.name ?? defaultProduct?.name ?? "Subscription item",
           quantity: 1,
-          unit_price: products[0]?.price ?? 0,
+          unit_price: defaultPlan?.price ?? defaultProduct?.price ?? 0,
           discount_percent: 0,
           tax_rate: 0,
-          product_id: products[0]?.id ?? undefined,
-          plan_id: undefined,
+          product_id: defaultPlan?.product_id ?? defaultProduct?.id ?? undefined,
+          plan_id: defaultPlan?.id ?? undefined,
         },
       ],
     },
@@ -62,6 +77,8 @@ export function SubscriptionForm({
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" });
   const items = form.watch("items") ?? [];
+  const findProductById = (productId?: string) => products.find((product) => product.id === productId);
+  const findPlanById = (planId?: string) => plans.find((plan) => plan.id === planId);
 
   const totals = calcTotals(
     items.map((item) => ({
@@ -181,16 +198,18 @@ export function SubscriptionForm({
               const productMatch = products.find((product) => product.id === selectedItem.product_id);
 
               return (
-                <div key={field.id} className="grid gap-3 rounded-lg border p-3 md:grid-cols-6">
+                <div key={field.id} className="grid gap-3 rounded-lg border p-3 md:grid-cols-7">
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Product</label>
                     <select
                       value={selectedItem.product_id ?? ""}
                       onChange={(event) => {
-                        const product = products.find((entry) => entry.id === event.target.value);
+                        const product = findProductById(event.target.value || undefined);
+                        const plan = plans.find((entry) => entry.product_id === product?.id);
                         form.setValue(`items.${index}.product_id`, product?.id ?? undefined, { shouldValidate: true });
-                        form.setValue(`items.${index}.description`, product?.name ?? selectedItem.description ?? "Subscription item", { shouldValidate: true });
-                        form.setValue(`items.${index}.unit_price`, product?.price ?? selectedItem.unit_price ?? 0, { shouldValidate: true });
+                        form.setValue(`items.${index}.plan_id`, plan?.id ?? undefined, { shouldValidate: true });
+                        form.setValue(`items.${index}.description`, plan?.name ?? product?.name ?? selectedItem.description ?? "Subscription item", { shouldValidate: true });
+                        form.setValue(`items.${index}.unit_price`, plan?.price ?? product?.price ?? selectedItem.unit_price ?? 0, { shouldValidate: true });
                       }}
                       className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                     >
@@ -198,6 +217,29 @@ export function SubscriptionForm({
                       {products.map((product) => (
                         <option key={product.id} value={product.id}>
                           {product.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Plan</label>
+                    <select
+                      value={selectedItem.plan_id ?? ""}
+                      onChange={(event) => {
+                        const plan = findPlanById(event.target.value || undefined);
+                        const product = findProductById((plan?.product_id ?? selectedItem.product_id) ?? undefined);
+                        form.setValue(`items.${index}.plan_id`, plan?.id ?? undefined, { shouldValidate: true });
+                        form.setValue(`items.${index}.product_id`, plan?.product_id ?? product?.id ?? selectedItem.product_id ?? undefined, { shouldValidate: true });
+                        form.setValue(`items.${index}.description`, plan?.name ?? product?.name ?? selectedItem.description ?? "Subscription item", { shouldValidate: true });
+                        form.setValue(`items.${index}.unit_price`, plan?.price ?? product?.price ?? selectedItem.unit_price ?? 0, { shouldValidate: true });
+                      }}
+                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="">Select plan</option>
+                      {plans.filter((plan) => !selectedItem.product_id || plan.product_id === selectedItem.product_id).map((plan) => (
+                        <option key={plan.id} value={plan.id}>
+                          {plan.name}
                         </option>
                       ))}
                     </select>
