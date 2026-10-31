@@ -30,10 +30,21 @@ export async function getHealth(): Promise<HealthReport> {
     if (res.ok) {
       return { ...base, supabase: { status: "ready", detail: "REST API reachable and the products table exists (migrations applied)" } };
     }
-    if (res.status === 401 || res.status === 403) {
-      return { ...base, supabase: { status: "invalid_key", detail: `Supabase rejected the anon key (HTTP ${res.status})` } };
-    }
     const body = await res.text();
+    if (res.status === 401 || res.status === 403) {
+      // PostgREST answers 401/42501 when the key is valid but the anon role has no table
+      // privilege – that is a permissions result, not a bad key.
+      if (/42501|permission denied/i.test(body)) {
+        return {
+          ...base,
+          supabase: {
+            status: "ready",
+            detail: "Key accepted and tables exist, but the anon role has no direct table access (normal with RLS). Sign-in is required to read data.",
+          },
+        };
+      }
+      return { ...base, supabase: { status: "invalid_key", detail: `Supabase rejected the anon key (HTTP ${res.status}). Check the key, quotes and spaces in .env.local, then restart npm run dev.` } };
+    }
     if (res.status === 404 || /PGRST205|42P01/.test(body)) {
       return { ...base, supabase: { status: "schema_missing", detail: "Reached Supabase but the products table is missing – apply the migrations" } };
     }
