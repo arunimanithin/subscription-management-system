@@ -1,69 +1,124 @@
 # SubscriptIQ
 
-A subscription management system: keep customers, products and plans, run subscriptions and quotations, bill customers automatically, collect payments, chase overdue money, and see how the business is doing.
+**A subscription management system that takes a business from "who is our customer?" to "who still owes us money?"** Keep customers and plans, run subscriptions and quotations, bill customers automatically, collect payments, chase overdue invoices, and see the numbers on one page.
 
-Built with **Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · shadcn/ui · Supabase (Postgres + Auth) · Zod · React Hook Form · Recharts**.
+## The problem
 
-> [CONTRACTS.md](./CONTRACTS.md) is the source of truth for the database, types, API endpoints, ownership and Git rules. If this README and CONTRACTS.md disagree, CONTRACTS.md wins.
+Businesses that sell on subscription end up with the same mess: customers in one place, prices in another, invoices in a spreadsheet and payments in a bank statement. Nobody is sure which period was billed, which invoice is still unpaid, or how much money is actually coming in.
 
----
+## The solution
 
-## What it does
+SubscriptIQ keeps the whole life of a subscription in one system, with one set of rules for money:
 
-| Area | What you can do |
+```
+Customer ─▶ Plan ─▶ Quotation ─▶ Subscription ─▶ Invoice ─▶ Payment
+                                       │             │
+                                       └─ billed ────┘     overdue tracking · financial overview
+                                          every period
+```
+
+- A customer is quoted a plan; the accepted quotation becomes a subscription.
+- Every billing period the subscription produces exactly one invoice, with tax and discounts calculated the same way everywhere.
+- Payments, full or partial, update the invoice automatically; unpaid invoices past their due date become overdue.
+- Staff see billed, collected, outstanding and overdue money at a glance; customers see only their own records in a portal.
+
+## What you can do with it
+
+| | |
 |---|---|
-| **Customers, products, plans** | Manage customers (active / inactive), a product catalogue and priced plans with billing interval, trial days, setup fee and tax rate. |
-| **Subscriptions & quotations** | Create subscriptions with several items; move them through trial, active, paused, past due, cancelled and expired. Send quotations, accept or reject them and convert an accepted quotation into a subscription. |
-| **Invoices** | Draft, issue and void invoices. Line items carry quantity, unit price, percentage **or** fixed discount and tax. Totals come from one shared calculator, so a quotation, a subscription and an invoice always agree. |
-| **Payments** | Record full or partial payments (UPI, card, bank transfer, cash, cheque), refund them, and see the history. Duplicate clicks and retries never double-charge. |
-| **Recurring billing** | One click (or one API call) bills every subscription whose billing date has arrived. Each period is billed exactly once. |
-| **Overdue tracking** | Unpaid invoices past their due date are flagged overdue, shown with "N days overdue" and filterable. |
-| **Financial overview** | Billed, collected, outstanding and overdue money, billed-vs-collected by month, receivables aging, invoices by status, payments by method and the top overdue customers. |
-| **Dashboard, analytics, portal** | Revenue and MRR views for staff, and a customer portal where a customer sees only their own subscriptions, invoices and payments. |
+| **Customers, products, plans** | Maintain customers, a product catalogue, and priced plans with billing interval, trial days, setup fee and tax rate. |
+| **Subscriptions and quotations** | Subscribe a customer to several items; move a subscription through trial, active, paused, past due, cancelled and expired. Send quotations, accept or reject them, and convert an accepted one into a subscription. |
+| **Invoices** | Create, issue and void invoices with line items, percentage or fixed discounts and tax. |
+| **Payments** | Record full or partial payments (UPI, card, bank transfer, cash, cheque) and refunds. |
+| **Recurring billing** | One click bills every subscription whose billing date has arrived. |
+| **Overdue tracking** | Past-due invoices are flagged, aged and filterable. |
+| **Financial overview** | Billed vs collected by month, receivables aging, status and payment-method breakdowns, top overdue customers. |
+| **Dashboard, analytics, customer portal** | Revenue and MRR views for staff; a portal where each customer sees only their own subscriptions, invoices and payments. |
 
-Three roles: **admin**, **staff** and **customer**. Customers only ever see their own records.
+Three roles: **admin**, **staff** and **customer**.
 
 ---
 
-## How it works
+## How it is built
 
-- **No custom backend server.** The browser and the Next.js server talk to Supabase with the **anon key and the signed-in user's session**. **Row Level Security (RLS)** in Postgres decides who can read or write each row.
-- **The Supabase `service_role` key is never used**, never stored in this project and must never be committed.
-- **Important changes are atomic.** Creating an invoice, recording a payment, voiding, running the overdue sweep and billing a subscription are Postgres functions that run in one transaction, lock the rows they change and run as the caller (so RLS still applies).
-- **Everything is validated** with shared Zod schemas, and every API route starts with an authorization check.
-- **API shape:** success `{ "data": … }`, lists add `"meta": { page, page_size, total }`, errors `{ "error": { code, message } }`.
+### Architecture
 
-### How an invoice lives
+- **Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS 4, shadcn/ui.** Pages render on the server; forms use React Hook Form with Zod validation.
+- **Supabase (Postgres and Auth) is the only backend.** There is no custom server. The browser and the Next.js server talk to Supabase with the **anon key and the signed-in user's session**.
+- **Security lives in the database.** Row Level Security (RLS) policies decide who can read or write every row: staff see everything, customers see only their own records. The Supabase `service_role` key is never used anywhere.
+- **Every API route** starts with an authorization check, validates its input with a shared Zod schema, and returns one response shape: `{ data }`, `{ data, meta }` for lists, or `{ error: { code, message } }`.
+
+### Data model
+
+`profiles` (a user and role) · `customers` · `products` · `plans` · `subscriptions` and `subscription_items` · `quotations` and `quotation_items` · `invoices` and `invoice_items` · `payments`. Statuses are text columns with `CHECK` constraints, and every table keeps `created_at` / `updated_at` automatically. Subscription, quotation and invoice lines store a **snapshot** of the description and price, so changing a plan later never rewrites history.
+
+### One set of money rules
+
+All amounts come from a single calculator (`src/lib/money.ts`): gross = quantity × price, the discount (a percentage **or** a capped fixed amount) comes off first, tax is charged on the discounted amount, and every line is rounded to two decimals. Quotations, subscriptions and invoices use it, so a quotation converted to an invoice gives identical numbers, and the database re-checks the totals before saving.
+
+### Changes that must not half-happen
+
+Anything that touches money is a Postgres function that runs in **one transaction**, locks the rows it changes, and runs as the caller so RLS still applies:
+
+- **Create invoice**: header and lines saved together, totals verified.
+- **Record payment**: locks the invoice, refuses overpayment and non-payable invoices, and accepts an **idempotency key**, so a double click or a retry after a network error returns the original payment instead of charging twice.
+- **Void, overdue sweep, edit draft**: each its own safe operation.
+- **Bill a subscription**: creates the invoice, issues it and moves the subscription's dates forward in one step.
+
+Database triggers keep an invoice's `amount_paid` and status equal to the sum of its succeeded payments, so the status cannot drift out of step with the payments.
+
+---
+
+## How billing works
+
+### An invoice's life
 
 ```
 draft ──issue──▶ open ──payment──▶ partially_paid ──payment──▶ paid
-                  │                       │
-                  └── past due date ──▶ overdue (stays overdue until fully paid)
-open / overdue / draft, with no payments ──void──▶ void
+                  │                      │
+                  └── past due date ──▶ overdue   (stays overdue until fully paid)
+
+draft / open / overdue with no payments ──void──▶ void
 a refunded payment reopens the balance
 ```
 
 ### Recurring billing
 
-A subscription is billed **in advance**. A period starts on its `next_billing_date`, dates are inclusive (`period_end = start + interval − 1 day`) and the invoice is issued as `open`, due 14 days later. The invoice and the subscription's new dates are saved in one transaction, so a period can never be skipped or billed twice. A subscription several periods behind catches up one period per run. Only `active` and `past_due` subscriptions are billed; billing never changes a subscription's status.
+A subscription is billed **in advance**. A period starts on its `next_billing_date`; dates are inclusive (`period_end = start + interval − 1 day`); the invoice is issued as `open` and due 14 days later. A unique rule on `(subscription, period start)` makes billing the same period twice impossible, and a subscription that is several periods behind catches up one period per run. Only `active` and `past_due` subscriptions are billed, and billing never changes a subscription's status.
 
-When a subscription is activated it should set `current_period_start = start_date`, `current_period_end = start_date + interval − 1 day` and `next_billing_date = start_date` so the first period is billed straight away.
+Billing runs from the **Run recurring billing** button or `POST /api/invoices/generate-due`. It is not on a timer yet; Vercel Cron or Supabase `pg_cron` can call the endpoint when you want it automatic.
 
-Billing is **not automatic yet**: it runs from the **Run recurring billing** button or `POST /api/invoices/generate-due`. Scheduling it (Vercel Cron or Supabase `pg_cron`) is a deployment choice.
+### Overdue tracking
 
-### What the financial figures mean
+A sweep (button or `POST /api/invoices/mark-overdue`) flags open and partially paid invoices past their due date as overdue. The invoice list also shows "N days overdue" and its overdue filter is accurate even before the sweep runs.
 
-- **Billed**: total of invoices issued in the period, excluding draft and void.
-- **Collected**: succeeded payments made in the period. Failed and refunded payments are not collected.
-- **Outstanding**: unpaid balance of every open, partially paid or overdue invoice **as of today** (not limited to the period). **Overdue** is the part already past its due date.
+### Financial overview
+
+The figures are calculated inside Postgres, so they stay exact however many invoices exist, and they are reported **per currency**, never mixed.
+
+- **Billed**: invoices issued in the period, excluding draft and void.
+- **Collected**: succeeded payments made in the period. Failed and refunded payments don't count.
+- **Outstanding**: unpaid balance of every open, partially paid or overdue invoice **as of today**; **overdue** is the part already past its due date.
 - **Aging**: unpaid balances grouped as not yet due, 1–30, 31–60, 61–90 and 90+ days past due.
-- Different currencies are reported separately and never added together.
+
+Served by `GET /api/invoices/summary` and `GET /api/invoices/aging`, and shown on the **Financial overview** page.
 
 ---
 
-## Getting started
+## How it was verified
 
-Requires **Node.js 20+** (verified on Node 22).
+- **Unit tests** (`npm test`): money maths, the recurring-billing planner, payment error mapping, report shaping and input validation.
+- **End-to-end test** (`npm run test:db`): a full billing scenario on an in-memory Postgres with every migration applied. It covers invoice, recurring run, partial, full and failed payments, refund, void, overdue sweep, financial reports and row level security.
+- **Build checks:** TypeScript, ESLint and the production build are clean.
+- **Realistic demo data:** 12 customers, 12 subscriptions and 67 invoices with 67 payments over about a year, in every status. The overview totals were cross-checked against numbers recomputed independently.
+
+---
+
+## Using it
+
+### What you need
+
+Node.js 20 or newer, and a free [Supabase](https://supabase.com) project.
 
 ### 1. Get the code
 
@@ -73,153 +128,59 @@ cd subscription-management-system
 npm install
 ```
 
-### 2. Set up Supabase (once per Supabase project)
+### 2. Set up the database
 
-1. Create a project at [supabase.com](https://supabase.com).
-2. **Project Settings → API**: copy the *Project URL* and the *anon* key.
-3. **SQL Editor**: run every file in `supabase/migrations/` **in filename order**:
+In Supabase, open the **SQL Editor** and run every file in `supabase/migrations/` **in filename order**. They create the tables, security rules, views and the billing functions. In **Authentication → Providers → Email**, turn off "Confirm email" for development.
 
-   | File | Adds |
-   |---|---|
-   | `…100001` – `…100003` | profiles, customers, products, plans, subscriptions, quotations |
-   | `…100004` | invoices and payments, with triggers that keep invoice status in sync with payments |
-   | `…100005` | Row Level Security policies |
-   | `…100006` | analytics views (MRR, monthly revenue, overdue invoices) |
-   | `…110001` | atomic invoice creation |
-   | `…120001` | payment recording (overpayment blocked, retry-safe) |
-   | `…130001` | void, overdue sweep, draft edits |
-   | `…140001` | recurring billing |
-   | `…150001` | financial overview and aging reports |
-
-4. **Authentication → Providers → Email**: for development turn **off** "Confirm email" so sign-up works immediately.
-5. Sign up (or **Authentication → Users → Add user**), then make yourself admin in the SQL Editor:
-   ```sql
-   update public.profiles set role = 'admin' where email = 'you@example.com';
-   ```
-   New sign-ups are always `customer`. A customer sees portal data once an admin or staff user links them by setting `customers.user_id` to their profile id.
-
-### 3. Configure the app
+### 3. Connect the app
 
 ```bash
 cp .env.example .env.local        # Windows PowerShell: Copy-Item .env.example .env.local
 ```
 
-Fill in `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. `.env.local` is git-ignored. **Never add the `service_role` key.**
+Put your Supabase **Project URL** and **anon key** (Project Settings → API) into `.env.local`. Never use the `service_role` key.
 
-### 4. Load the demo data (optional, development projects only)
+### 4. Make yourself admin
 
-`supabase/seed-demo.sql` gives every teammate the same realistic data: 12 customers, 7 products, 9 plans, 12 subscriptions in every status, 6 quotations, **67 invoices and 67 payments over about 12 months** in every status, with percentage and fixed discounts, partial payments, a failed attempt, a pending transfer and a refund. Two subscriptions are due today, so **Run recurring billing** creates two invoices.
+Sign up in the app (or add a user in **Authentication → Users**), then run in the SQL Editor:
 
-1. In **Authentication → Users → Add user** (tick *Auto Confirm User*) create these five users with one development password (share it in chat, never in Git):
+```sql
+update public.profiles set role = 'admin' where email = 'you@example.com';
+```
 
-   | Email | Becomes | Use it to test |
+New sign-ups are always `customer`.
+
+### 5. Load the demo data (development projects only)
+
+1. In **Authentication → Users → Add user** (tick *Auto Confirm User*) create these five users with one development password:
+
+   | Email | Role | What it shows |
    |---|---|---|
-   | `meera.menon@subscriptiq.example.com` | staff | day-to-day billing work |
+   | `meera.menon@subscriptiq.example.com` | staff | day-to-day billing |
    | `rahul.varma@subscriptiq.example.com` | staff | a second staff user |
-   | `priya.nair@aaravtextiles.example.com` | customer of *Aarav Textiles* | the customer portal |
-   | `anil.thomas@keralaspice.example.com` | customer of *Kerala Spice Co* | checking that customers are isolated |
-   | `divya.ramesh@niladigital.example.com` | customer of *Nila Digital Studio* | a third customer |
+   | `priya.nair@aaravtextiles.example.com` | customer of Aarav Textiles | the customer portal |
+   | `anil.thomas@keralaspice.example.com` | customer of Kerala Spice Co | customers only see their own data |
+   | `divya.ramesh@niladigital.example.com` | customer of Nila Digital Studio | a third customer |
 
-2. Paste the whole of `supabase/seed-demo.sql` into the SQL Editor and run it. It ends with a notice such as `Demo data present: 12 customers, 12 subscriptions, 67 invoices, 67 payments … 5 of 5`. If it reports fewer than 5 users, create the missing ones and run it again.
+2. Paste `supabase/seed-demo.sql` into the SQL Editor and run it. It ends with a notice like `Demo data present: 12 customers, 12 subscriptions, 67 invoices, 67 payments … 5 of 5`.
 
-The seed is **safe to re-run** (no duplicates), never changes or deletes real data, contains no passwords or keys, and rolls back if any invoice total is inconsistent. Demo rows are easy to spot (`INV-DEMO-001`, `SUB-DEMO-03`, SKUs `DEMO-*`). Your own admin account is untouched. To remove the demo data, run `supabase/unseed-demo.sql` and delete the five demo users by hand. **Never run the seed on production.**
+It is safe to re-run, never changes real data, contains no passwords or keys, and demo rows are easy to spot (`INV-DEMO-001`, `SUB-DEMO-03`). `supabase/unseed-demo.sql` removes only the demo rows. Two subscriptions are due today, so **Run recurring billing** creates two invoices straight away.
 
-### 5. Run
+### 6. Run it
 
 ```bash
 npm run dev          # http://localhost:3000
 ```
 
-Open **http://localhost:3000/health**: it shows whether the environment variables are set and whether Supabase and the schema are reachable.
+`http://localhost:3000/health` confirms the app can reach Supabase and the schema. Then try: **Invoices → Run recurring billing**, record a payment on an invoice, and open **Financial overview**.
 
----
+### Limits to know about
 
-## Scripts and tests
-
-| Command | What it does |
-|---|---|
-| `npm run dev` / `build` / `start` | Develop, build and serve |
-| `npm run typecheck` | TypeScript check |
-| `npm run lint` | ESLint |
-| `npm test` | Unit tests: money maths, recurring-billing planner, payment error mapping, report shaping and validation |
-| `npm run test:db` | End-to-end billing scenario on an in-memory Postgres with every migration applied: invoice → recurring run → partial, full and failed payments → refund → void → overdue sweep → financial reports → row level security. Needs no Supabase project. First run `npm install --no-save @electric-sql/pglite` (this does not change `package.json`). |
-
-Before every push: `npm run typecheck && npm run lint && npm run build`.
-
----
-
-## API at a glance
-
-Every route requires a signed-in user; roles are **A**dmin, **S**taff, **C**ustomer (own records only). The complete list with request and response types is in [CONTRACTS.md](./CONTRACTS.md) section 4.
-
-| Area | Endpoints | Roles |
-|---|---|---|
-| Invoices | `GET/POST /api/invoices` · `GET/PATCH /api/invoices/:id` · `POST /api/invoices/:id/transition` (issue, void) | A S (read also C) |
-| Recurring billing | `POST /api/invoices/generate` · `POST /api/invoices/generate-due` | A S |
-| Overdue | `POST /api/invoices/mark-overdue` | A S |
-| Reports | `GET /api/invoices/summary?from&to` · `GET /api/invoices/aging?as_of` | A S |
-| Payments | `GET/POST /api/payments` · `GET /api/payments/:id` · `POST /api/payments/:id/refund` | A S (read also C) |
-| Customers, products, plans, subscriptions, quotations | see CONTRACTS.md | A S |
-| Dashboard, analytics, portal | see CONTRACTS.md | A S / C |
-
----
-
-## Project structure
-
-```
-supabase/
-  migrations/        numbered SQL files, applied in filename order
-  seed-demo.sql      shared demo data (idempotent)      unseed-demo.sql  removes it
-  tests/             billing-e2e.mjs, the in-memory Postgres end-to-end test
-src/
-  types/             enums, entities, Zod schemas, API types
-  lib/               money.ts, billing-period.ts, API guard and response helpers, Supabase clients
-  components/        shared UI (shadcn/ui primitives, status badge, page header, app shell)
-  features/          one folder per module: nav.ts + index.ts + its own components and services
-    billing/         invoices, payments, recurring billing, reports (see its README.md)
-  app/
-    (app)/…          staff pages: customers, products, plans, subscriptions, quotations,
-                     invoices (+ /invoices/overview), payments, dashboard, analytics
-    portal/          customer portal
-    api/…            route handlers, owned by the module that owns the resource
-    health/          configuration and connectivity check
-```
-
-Conventions: JSON and database columns use `snake_case`; money is a number with 2 decimals; dates are `YYYY-MM-DD`; the default currency is `INR`.
-
----
-
-## Working in the team
-
-- One branch per module; only edit your module's folders. Shared files (`src/types`, `src/lib`, `src/components`, `supabase`, `CONTRACTS.md`, `README.md`, root config) change only through a backward-compatible pull request into `main`.
-- Reading another module's tables is fine (RLS applies); **writing** to them goes through that module's endpoint.
-- New database change → a new file `supabase/migrations/YYYYMMDDHHMMSS_<module>_<what>.sql` with a later timestamp than every existing file. Never edit a migration that has already been run.
-
-```bash
-git pull --rebase origin main        # at least hourly
-npm run typecheck && npm run lint && npm run build
-git add -A && git commit -m "feat(<module>): …" && git push origin <your-branch>
-# open a pull request into main
-```
-
----
-
-## Troubleshooting
-
-- **`/health` says invalid key** – wrong URL or anon key in `.env.local`; restart `npm run dev` after editing it.
-- **`/health` says schema missing** – the migrations have not been run in this Supabase project.
-- **Run recurring billing or the Financial overview shows an error mentioning a missing function** – run the latest migrations (`…140001`, `…150001`).
-- **Sign-up works but you see no data** – your profile is `customer`; promote yourself to admin (setup step 2.5).
-- **A customer user sees nothing** – their customer row must have `customers.user_id` set to their profile id.
-- **The demo seed says fewer than 5 demo users found** – create the missing users in Authentication → Users and run it again.
-
----
-
-## Current status and limits
-
-- Billing (invoices, payments, overdue tracking, recurring billing and the financial overview) is complete and has been tested screen by screen against a live Supabase project, plus the automated tests above.
-- Recurring billing runs only from the button or the API; there is no scheduler yet.
-- Editing a draft invoice is available through `PATCH /api/invoices/:id` only; there is no edit screen.
-- Customers cannot record payments; payments are entered by staff.
+- Recurring billing starts from the button or API; there is no scheduler yet.
+- A draft invoice can be edited through `PATCH /api/invoices/:id`, but there is no edit screen.
+- Customers can't record payments; staff enter them.
 - Amounts in different currencies are never converted.
-- Not covered by the automated tests: the HTTP routes and the screens themselves, and `supabase db push`.
+
+### For developers
+
+The full API (every endpoint, request and response type, roles), the database tables and the team's ownership and Git rules are in [CONTRACTS.md](./CONTRACTS.md). Billing details are in `src/features/billing/README.md`. Scripts: `npm run typecheck`, `npm run lint`, `npm run build`, `npm test`, and `npm run test:db` (first run `npm install --no-save @electric-sql/pglite`).
