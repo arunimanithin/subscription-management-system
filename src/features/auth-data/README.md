@@ -17,6 +17,10 @@ Sign in, register, forgot / reset password, sign out, route guards, the signed-i
 | Users screen (search, role filter, change role) | `src/features/auth-data/components/users-manager.tsx`, `src/app/(app)/users/page.tsx` |
 | Sign-out button (in the staff sidebar) | `src/features/auth-data/components/sign-out-button.tsx` |
 
+## Customers, products and plans
+
+`GET`/`POST /api/customers|products|plans` and `GET`/`PATCH`/`DELETE /api/<name>/:id`, with `?page=&page_size=&search=&status=` (plans also `?product_id=`). Staff and admin can read and write customers; products and plans can be read by any signed-in user (customers only see active ones) and written by staff and admin. Only admins can delete, and a row used elsewhere returns `409` with advice to mark it inactive. All of it is built by one small factory, `src/features/auth-data/crud.ts`, configured in `resources.ts`; the three screens share `components/resource-manager.tsx`.
+
 ## Route rules
 
 | Visitor | Can open | Is sent to |
@@ -68,4 +72,4 @@ That message means the browser could not reach Supabase at all. Check in order:
 
 ## Tests
 
-`npx tsx --test src/lib/auth/guards.test.ts src/features/auth-data/users.test.ts` covers the route rules (every role against every kind of page), the safe `?next=` check, the users query and the self-role-change rule. (Billing adds an `npm test` script that runs these too once the branches are merged.)
+`npx tsx --test src/lib/auth/guards.test.ts src/features/auth-data/users.test.ts src/features/auth-data/crud.test.ts` covers the route rules (every role against every kind of page), the safe `?next=` check, the users query and the self-role-change rule. (Billing adds an `npm test` script that runs these too once the branches are merged.)

@@ -1,5 +1,11 @@
-import { ModulePlaceholder } from "@/components/shared/module-placeholder";
+import { PageHeader } from "@/components/shared/page-header";
+import { CustomersScreen } from "@/features/auth-data/components/customers-screen";
 
 export default function CustomersPage() {
-  return <ModulePlaceholder module="authData" title="Customers" description="Customer directory and details." />;
+  return (
+    <>
+      <PageHeader title="Customers" description="Customer directory. Add, edit and find the businesses you bill." />
+      <CustomersScreen />
+    </>
+  );
 }
