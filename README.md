@@ -37,27 +37,34 @@ Requires Node.js 20+ (built and verified on Node 22).
 
 ## 2b. Shared demo data (optional – everyone tests against the same data)
 
-`supabase/seed-demo.sql` loads realistic, clearly labelled **demo** data so every member can build and test their module without typing records by hand: 12 customers (1 inactive), 7 products, 9 plans (weekly/monthly/quarterly/yearly, 1 inactive), 12 subscriptions (active, trialing, past due, paused, cancelled, expired), 6 quotations (draft → converted), 67 invoices with line items (draft, open, partially paid, paid, overdue, void; percentage **and** fixed discounts; 0/5/12/18 % tax) and 67 payments (full, partial, several per invoice, failed, pending, refunded) spread over the last 12 months, so MRR, revenue trends, customer/subscription growth, outstanding and overdue amounts and recent payments all have data.
+`supabase/seed-demo.sql` loads a small fictional business so every member can build and test their module with data that behaves like the real thing, instead of typing records by hand:
 
-**Safe by design:** demo rows have fixed ids (`de00000X-…`), numbers like `INV-DEMO-001`, names ending in "(Demo)" and e-mails ending in `@demo.subscriptiq.test`. Running the script again creates **no duplicates**. It never changes or deletes anything that is not demo data. No passwords, tokens or service-role keys are in it. **Development projects only – never run it on production.**
+- **12 customers** across Kerala, Karnataka, Tamil Nadu, Maharashtra and Telangana, each with a named contact person, address and GSTIN-style tax id (one customer is inactive).
+- **7 products and 9 plans** (weekly / monthly / quarterly / yearly; 5 %, 12 %, 18 % and 0 % GST; one retired product and plan).
+- **12 subscriptions** in every status (active, trialing, past due, paused, cancelled, expired) with realistic histories: a price rise (old invoices keep the old price), seats growing from 3 to 5, a 20 % launch offer, a negotiated annual discount, one-time setup fees.
+- **6 quotations** (draft, sent, accepted, rejected, expired, converted – `QUO-DEMO-06` became `SUB-DEMO-03`).
+- **67 invoices with line items** over 12 months in every status (draft, open, partially paid, paid, overdue, void), with percentage **and** fixed discounts, and **67 payments** that follow each customer's habits: autopay customers pay within a day or two, some pay NEFT on net-30 terms, one customer pays late, one pays by cheque; includes a payment in two instalments, a failed card attempt, a pending bank transfer and a duplicate payment that was refunded. References look real (UPI ref, bank UTR, gateway id, cheque number).
+- Enough history for MRR, revenue trends, collected vs outstanding, overdue ageing, customer and subscription growth, and recent payments.
+
+**Safe by design:** demo rows have fixed ids (`de00000X-…`) and numbers like `INV-DEMO-001`, `SUB-DEMO-03`. Every e-mail address uses `example.com` (it can never receive mail). Running the script again creates **no duplicates**, and it never changes or deletes anything that is not demo data (your own admin account is left alone; the seeded records are attributed to the oldest admin). It contains no passwords, tokens or service-role keys, and aborts (rolls back) if any invoice total is inconsistent. **Development projects only – never run it on production.**
 
 **Team Lead, once per Supabase project:**
-1. In **Authentication → Users → Add user** (tick *Auto Confirm User*) create these six users, all with the same development password you choose (share it with the team in chat, never in Git):
+1. You stay the admin. In **Authentication → Users → Add user** (tick *Auto Confirm User*) create these five users with one development password you choose (share it with the team in chat, never in Git):
 
-   | E-mail | Role after the seed | Use it to test |
+   | E-mail | Becomes | Use it to test |
    |---|---|---|
-   | `admin@demo.subscriptiq.test` | admin | everything, including deletes and user management |
-   | `staff1@demo.subscriptiq.test`, `staff2@demo.subscriptiq.test` | staff | day-to-day work (create/edit, no deletes) |
-   | `customer1@demo.subscriptiq.test` | customer, linked to *Aarav Textiles (Demo)* | portal: sees only its own subscription, invoices and payments |
-   | `customer2@demo.subscriptiq.test` | customer, linked to *Kerala Spice Co (Demo)* | portal (a second customer, to check isolation) |
-   | `customer3@demo.subscriptiq.test` | customer, linked to *Nila Digital Studio (Demo)* | portal |
+   | `meera.menon@subscriptiq.example.com` | staff – Meera Menon | day-to-day billing work (create/edit, no deletes) |
+   | `rahul.varma@subscriptiq.example.com` | staff – Rahul Varma | a second staff member |
+   | `priya.nair@aaravtextiles.example.com` | customer – linked to *Aarav Textiles* | the customer portal: sees only its own subscription, invoices and payments |
+   | `anil.thomas@keralaspice.example.com` | customer – linked to *Kerala Spice Co* | a second customer, to check isolation |
+   | `divya.ramesh@niladigital.example.com` | customer – linked to *Nila Digital Studio* | a third customer |
 
-2. **SQL Editor** → paste the whole of `supabase/seed-demo.sql` → Run. It ends with a notice such as `Demo data present: 12 customers, 12 subscriptions, 67 invoices, 67 payments`. (If it says some demo users are missing, create them and run the script again – roles and links are applied then.)
-3. Tell the team the data is in. Everyone signs in at the app with the accounts above. Nobody else needs to run anything.
+2. **SQL Editor** → paste the whole of `supabase/seed-demo.sql` → Run. It ends with a notice such as `Demo data present: 12 customers, 12 subscriptions, 67 invoices, 67 payments`. (If it says some demo users are missing, create them and run the script again – names, roles and links are applied then.)
+3. Tell the team the data is in. Everyone signs in with the accounts above (or their own admin account). Nobody else needs to run anything.
 
-**What to try per module:** Member 1 – customers (one is inactive), products and plans (one inactive plan). Member 2 – subscriptions in every status and quotations in every status (`QUO-DEMO-06` is already converted to `SUB-DEMO-03`). Member 3 – invoices in every status, multi-payment and refunded/failed/pending payments; `SUB-DEMO-03` and `SUB-DEMO-04` are due today, so *Run recurring billing* creates two invoices. Member 4 – the views `monthly_revenue`, `subscription_item_mrr`, `overdue_invoices` and the customer/subscription growth data.
+**What to try per module:** Member 1 – customers (one inactive), products and plans (one retired). Member 2 – subscriptions in every status and quotations in every status. Member 3 – invoices in every status, multi-payment, failed, pending and refunded payments; `SUB-DEMO-03` and `SUB-DEMO-04` are due today, so *Run recurring billing* creates two invoices. Member 4 – the views `monthly_revenue`, `subscription_item_mrr`, `overdue_invoices` and the customer/subscription growth data.
 
-To remove the demo data later, run `supabase/unseed-demo.sql` (it deletes only demo rows, including invoices or payments teammates created on them; delete the six demo users in Authentication → Users by hand). If your Supabase rejects the `.test` e-mail domain, replace `demo.subscriptiq.test` with another domain throughout the file before running.
+To remove the demo data later, run `supabase/unseed-demo.sql` (it deletes only demo rows, including invoices or payments teammates created on them; delete the five demo users in Authentication → Users by hand). If your Supabase rejects the `example.com` addresses, replace that domain throughout the file with another before running.
 
 ## 3. Run
 

@@ -186,7 +186,7 @@ New change after merge → new file `supabase/migrations/YYYYMMDDHHMMSS_<module>
 
 One-time manual setup: create the first admin (README step 4) and, for the demo, turn **off** "Confirm email" in Supabase Auth settings.
 
-**Shared demo data:** `supabase/seed-demo.sql` (idempotent; fixed ids `de00000X-…`; e-mails `@demo.subscriptiq.test`; numbers `INV-DEMO-###`, `SUB-DEMO-##`, `QUO-DEMO-##`) gives every member the same realistic customers, plans, subscriptions, quotations, invoices and payments to test against – see README section 2b. It never edits or deletes non-demo rows; `supabase/unseed-demo.sql` removes only demo rows. Do not hard-code demo ids or numbers in application code or production tests.
+**Shared demo data:** `supabase/seed-demo.sql` (idempotent; fixed ids `de00000X-…`; fictional businesses and people with `example.com` e-mails; numbers `INV-DEMO-###`, `SUB-DEMO-##`, `QUO-DEMO-##`) gives every member the same realistic customers, plans, subscriptions, quotations, invoices and payments to test against – see README section 2b. It never edits or deletes non-demo rows; `supabase/unseed-demo.sql` removes only demo rows. Do not hard-code demo ids or numbers in application code or production tests.
 
 ## 10. Git and integration rules
 
