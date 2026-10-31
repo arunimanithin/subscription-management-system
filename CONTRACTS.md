@@ -12,6 +12,7 @@ Next.js 15 (App Router) + React 19 + TypeScript + Tailwind CSS 4 + shadcn/ui + S
 supabase/
   migrations/            6 SQL files, applied in filename order (see section 9)
   seed.sql               optional demo products/plans
+  seed-demo.sql          shared DEMO data for all members (README 2b); unseed-demo.sql removes it
 src/
   types/                 SHARED  enums.ts, entities.ts, schemas.ts (Zod), api.ts, nav.ts
   lib/                   SHARED  money.ts, billing-period.ts, utils.ts, env.ts, health.ts
@@ -196,6 +197,8 @@ Every member points `.env.local` at the **same shared Supabase project** (or eac
 New change after merge → new file `supabase/migrations/YYYYMMDDHHMMSS_<module>_<what>.sql` (timestamp later than all existing files). Never edit a migration that is on `main`. Tell the team in chat when you add one.
 
 One-time manual setup: create the first admin (README step 4) and, for the demo, turn **off** "Confirm email" in Supabase Auth settings.
+
+**Shared demo data:** `supabase/seed-demo.sql` (idempotent; fixed ids `de00000X-…`; fictional businesses and people with `example.com` e-mails; numbers `INV-DEMO-###`, `SUB-DEMO-##`, `QUO-DEMO-##`) gives every member the same realistic customers, plans, subscriptions, quotations, invoices and payments to test against – see README section 2b. It never edits or deletes non-demo rows; `supabase/unseed-demo.sql` removes only demo rows. Do not hard-code demo ids or numbers in application code or production tests.
 
 ## 10. Git and integration rules
 
