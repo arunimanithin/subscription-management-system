@@ -8,3 +8,5 @@ export { getPayment, listPayments, recordPayment, refundPayment } from "./paymen
 export type { CreatePaymentInput, PaymentListRow } from "./payments/service";
 export type { InvoiceListRow, ListInvoicesParams } from "./invoices/service";
 export type { CreateInvoiceInput } from "./invoices/types";
+export { generateInvoiceForSubscription, runRecurringBilling } from "./recurring/service";
+export type { GenerateResult, RunSummary } from "./recurring/service";

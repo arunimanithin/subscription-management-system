@@ -3,7 +3,7 @@ import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { getPageAuth } from "@/features/billing/auth";
-import { MarkOverdueButton } from "@/features/billing/components/invoice-actions";
+import { MarkOverdueButton, RunBillingButton } from "@/features/billing/components/invoice-actions";
 import { AuthNotice } from "@/features/billing/components/auth-notice";
 import { Input, Select } from "@/features/billing/components/fields";
 import { InvoiceTable } from "@/features/billing/components/invoice-table";
@@ -23,6 +23,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
       description="Invoices, taxes, discounts and overdue tracking."
       actions={
         <>
+          <RunBillingButton />
           <MarkOverdueButton />
           <Button asChild>
             <Link href="/invoices/new">

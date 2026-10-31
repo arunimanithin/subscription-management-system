@@ -51,3 +51,10 @@ creation. Editing a plan or product later never changes an existing invoice.
 - Fixed-amount discount per line ("Or fixed discount" in the invoice form), alternative to the percentage; rules live in `src/lib/money.ts`.
 - `PATCH /api/invoices/:id` edits drafts (API only; there is no edit screen yet).
 - Recurring generation (`/api/invoices/generate`) is Part 4 and still returns 501.
+
+## Part 4 – Recurring billing
+- Migration `20261031140001_billing_recurring.sql`: `generate_subscription_invoice` – one period of one subscription, invoice + issue + subscription date advance in a single transaction; row-locked, idempotent per period.
+- `recurring/plan.ts` (pure, tested): decides eligibility, the period and the amounts using `src/lib/money.ts` and `src/lib/billing-period.ts`. `recurring/service.ts`: `generateInvoiceForSubscription`, `runRecurringBilling` (exported from the module index so Member 2 can add a "bill now" button on the subscription page).
+- API: `POST /api/invoices/generate` (one subscription), `POST /api/invoices/generate-due` (everything due). UI: **Run recurring billing** button on `/invoices`.
+- Convention (period starts on `next_billing_date`, inclusive dates, billed in advance, due in 14 days) is documented in CONTRACTS.md for Member 2.
+- Not automatic: nothing runs on a timer yet. Call `generate-due` from the button, or schedule it (Vercel Cron / Supabase pg_cron) – a deployment decision.

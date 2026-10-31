@@ -165,3 +165,56 @@ export function MarkOverdueButton() {
     </div>
   );
 }
+
+/** Admin/staff: bill every active subscription whose billing date has arrived (one period each). */
+export function RunBillingButton() {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [details, setDetails] = useState<string[]>([]);
+
+  async function run() {
+    setBusy(true);
+    setMsg(null);
+    setDetails([]);
+    try {
+      const res = await fetch("/api/invoices/generate-due", { method: "POST" });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        setMsg(json?.error?.message ?? `Request failed (HTTP ${res.status})`);
+      } else {
+        const d = json.data as { processed: number; created: number; skipped: number; failed: number; results: { subscription_number: string; outcome: string; invoice_number?: string; reason?: string }[] };
+        setMsg(
+          d.processed === 0
+            ? "No subscriptions are due."
+            : `${d.created} invoice${d.created === 1 ? "" : "s"} created${d.skipped ? `, ${d.skipped} skipped` : ""}${d.failed ? `, ${d.failed} failed` : ""}.`,
+        );
+        setDetails(
+          d.results
+            .filter((r) => r.outcome === "skipped" || r.outcome === "failed")
+            .map((r) => `${r.subscription_number}: ${r.reason ?? r.outcome}`),
+        );
+        router.refresh();
+      }
+    } catch {
+      setMsg("Network error. Please try again.");
+    }
+    setBusy(false);
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <div className="flex items-center gap-2">
+        {msg ? <span className="text-xs text-muted-foreground">{msg}</span> : null}
+        <Button variant="outline" size="sm" onClick={run} disabled={busy}>
+          {busy ? "Billing…" : "Run recurring billing"}
+        </Button>
+      </div>
+      {details.map((d) => (
+        <span key={d} className="max-w-md text-right text-xs text-destructive">
+          {d}
+        </span>
+      ))}
+    </div>
+  );
+}
