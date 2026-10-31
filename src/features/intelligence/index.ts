@@ -8,3 +8,4 @@ export { getDashboardData } from "./services/dashboard-service";
 export { LeakRadarView } from "./radar/leak-radar-view";
 export { getLeakRadarData } from "./services/leak-radar-service";
 export { calculateHealthScore } from "./services/healthScore";
+export { getRenewalData } from "./services/renewal-service";
