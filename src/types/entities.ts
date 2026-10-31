@@ -176,6 +176,7 @@ export interface Payment extends Timestamps {
   method: PaymentMethod;
   status: PaymentStatus;
   reference: string | null;
+  idempotency_key: string | null;
   paid_at: string;
   notes: string | null;
   recorded_by: string | null;

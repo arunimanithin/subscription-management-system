@@ -1,10 +1,15 @@
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { InvoiceDetail as InvoiceDetailData } from "@/types/api";
+import { PaymentForm } from "@/features/billing/components/payment-form";
+import { RefundButton } from "@/features/billing/components/invoice-actions";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
-export function InvoiceDetail({ invoice }: { invoice: InvoiceDetailData }) {
+const PAYABLE = ["open", "partially_paid", "overdue"];
+
+export function InvoiceDetail({ invoice, canManage = false }: { invoice: InvoiceDetailData; canManage?: boolean }) {
   const money = (n: number) => formatCurrency(n, invoice.currency);
+  const payable = PAYABLE.includes(invoice.status) && invoice.amount_due > 0;
   return (
     <div className="flex flex-col gap-6">
       <Card>
@@ -53,6 +58,10 @@ export function InvoiceDetail({ invoice }: { invoice: InvoiceDetailData }) {
         </table>
       </Card>
 
+      {canManage && payable ? (
+        <PaymentForm key={`${invoice.amount_paid}-${invoice.status}`} invoiceId={invoice.id} balanceDue={invoice.amount_due} currency={invoice.currency} />
+      ) : null}
+
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
@@ -70,6 +79,7 @@ export function InvoiceDetail({ invoice }: { invoice: InvoiceDetailData }) {
                     </span>
                     <span className="flex items-center gap-2">
                       {money(p.amount)} <StatusBadge status={p.status} />
+                      {canManage && p.status === "succeeded" ? <RefundButton paymentId={p.id} /> : null}
                     </span>
                   </li>
                 ))}

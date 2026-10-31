@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { getPageAuth } from "@/features/billing/auth";
 import { AuthNotice } from "@/features/billing/components/auth-notice";
+import { IssueInvoiceButton } from "@/features/billing/components/invoice-actions";
 import { InvoiceDetail } from "@/features/billing/components/invoice-detail";
 import { getInvoice } from "@/features/billing/invoices/service";
 
@@ -22,6 +23,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     );
   }
 
+  const canManage = auth.profile.role === "admin" || auth.profile.role === "staff";
   const { data, error } = await getInvoice(auth.supabase, id);
   if (error) {
     // PGRST116 = no row (missing, or hidden by RLS); 22P02 = malformed uuid
@@ -35,14 +37,17 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         title={data.invoice_number}
         description="Invoice details"
         actions={
-          <Button asChild variant="outline" size="sm">
-            <Link href="/invoices">
-              <ArrowLeft /> All invoices
-            </Link>
-          </Button>
+          <>
+            {canManage && data.status === "draft" ? <IssueInvoiceButton invoiceId={data.id} /> : null}
+            <Button asChild variant="outline" size="sm">
+              <Link href="/invoices">
+                <ArrowLeft /> All invoices
+              </Link>
+            </Button>
+          </>
         }
       />
-      <InvoiceDetail invoice={data} />
+      <InvoiceDetail invoice={data} canManage={canManage} />
     </>
   );
 }

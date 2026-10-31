@@ -69,3 +69,41 @@ export async function createInvoice(supabase: SupabaseClient, input: CreateInvoi
   if (error) return { data: null, error };
   return getInvoice(supabase, id as string);
 }
+
+/**
+ * Issue a draft invoice (draft -> open). The conditional update only matches a draft, so issuing
+ * twice or issuing a non-draft is rejected instead of silently succeeding. Full lifecycle
+ * (void, overdue) comes in Part 3.
+ */
+export async function issueInvoice(
+  supabase: SupabaseClient,
+  id: string,
+): Promise<Result<InvoiceDetail> | { data: null; error: DbError; invalidState: string }> {
+  const { data: current, error: readError } = await supabase.from("invoices").select("status, total").eq("id", id).maybeSingle();
+  if (readError) return { data: null, error: readError };
+  if (!current) return { data: null, error: { code: "PGRST116", message: "Invoice not found" } };
+  if (current.status !== "draft") {
+    return {
+      data: null,
+      error: { message: `Only draft invoices can be issued (this invoice is ${current.status})` },
+      invalidState: current.status as string,
+    };
+  }
+  if (Number(current.total) <= 0) {
+    return { data: null, error: { code: "23514", message: "An invoice with a zero total cannot be issued" } };
+  }
+
+  const { data: updated, error } = await supabase
+    .from("invoices")
+    .update({ status: "open" })
+    .eq("id", id)
+    .eq("status", "draft")
+    .select("id")
+    .maybeSingle();
+  if (error) return { data: null, error };
+  if (!updated) {
+    // someone else changed it between our read and update
+    return { data: null, error: { message: "The invoice was changed by someone else; reload and try again" }, invalidState: "changed" };
+  }
+  return getInvoice(supabase, id);
+}

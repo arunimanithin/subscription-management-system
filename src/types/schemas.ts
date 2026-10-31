@@ -165,6 +165,8 @@ export const createPaymentSchema = z.object({
   reference: z.string().trim().max(200).nullish(),
   paid_at: z.string().datetime().optional(),
   notes: optionalText,
+  /** Client-generated unique key (8-100 chars). Retrying with the same key never creates a second payment. */
+  idempotency_key: z.string().trim().min(8).max(100).optional(),
 });
 
 /* ---------- analytics (Member 4) ---------- */

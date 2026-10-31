@@ -34,3 +34,11 @@ creation. Editing a plan or product later never changes an existing invoice.
 - Invoice numbers (`INV-000001`…) come from a database sequence: unique, but a failed attempt can leave a gap.
 - `/dev/sign-in` is a **temporary** development-only page, until Member 1's `/auth/login` is merged. Delete
   `src/app/dev/`, `components/dev-sign-in.tsx` and the link in `components/auth-notice.tsx` afterwards.
+
+## Part 2 – Payments
+- `record_payment` (migration `20261031120001`) is atomic: locks the invoice, blocks overpayment, supports idempotency keys (duplicate click / retry safe).
+- Payments only allowed on `open`, `partially_paid`, `overdue` invoices; invoice status/`amount_paid` are recomputed by the existing DB trigger.
+- Refund: `POST /api/payments/:id/refund` (succeeded → refunded; invoice balance reopens).
+- Issue invoice: `POST /api/invoices/:id/transition {action:"issue"}` (draft → open; zero-total invoices refused).
+- UI: record-payment form + refund buttons on the invoice page (admin/staff only), `/payments` history with status filter and pagination.
+- Customers cannot create payments (staff-only); a customer "pay now" flow is a later decision.

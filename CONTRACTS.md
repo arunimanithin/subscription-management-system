@@ -127,6 +127,9 @@ Roles column: A = admin, S = staff, C = customer (own records only).
 | POST `/api/invoices/mark-overdue` | – | `MarkOverdueResponse` | A S | M3 |
 | GET, POST `/api/payments` | `createPaymentSchema` | `PaymentListResponse` · `PaymentResponse` (201) | A S (GET also C) | M3 |
 | GET `/api/payments/:id` · POST `/api/payments/:id/refund` | – | `PaymentResponse` | A S | M3 |
+| POST `/api/invoices/:id/transition` | `{action:'issue'}` (Part 2); `'void'` etc. in Part 3 | `InvoiceResponse` | A S | M3 |
+
+Payments notes (M3): `createPaymentSchema` has an optional `idempotency_key` (8–100 chars): repeating a request with the same key returns the original payment (HTTP 200 instead of 201). `GET /api/payments` also accepts `invoice_id` and `status` filters; rows include `invoice_number` and `customer_name`. Payments are recorded through the Postgres function `record_payment` (row-locks the invoice; rejects amounts above the balance due and invoices that are not open/partially_paid/overdue). Refund = `succeeded → refunded`.
 | GET `/api/dashboard/summary` | – | `DashboardSummaryResponse` | A S | M4 |
 | GET `/api/analytics/revenue?from&to` | – | `RevenueResponse` | A S | M4 |
 | GET `/api/analytics/mrr-by-plan` | – | `MrrByPlanResponse` | A S | M4 |
