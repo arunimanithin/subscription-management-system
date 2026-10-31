@@ -1,4 +1,12 @@
-import { notImplemented } from "@/lib/api/respond";
+import { ok } from "@/lib/api/respond";
+import { getDashboardData } from "@/features/intelligence/services/dashboard-service";
 
-// Owner: intelligence – replace this stub. Contract: CONTRACTS.md section 4.
-export const GET = () => notImplemented("GET /api/dashboard/summary");
+/**
+ * GET /api/dashboard/summary
+ * Contract: CONTRACTS.md section 4 (DashboardSummaryResponse)
+ * Accessible by: admin, staff
+ */
+export async function GET() {
+  const data = await getDashboardData();
+  return ok(data.summary);
+}
