@@ -14,8 +14,8 @@ Subscription management system (hackathon build). Next.js 15 · TypeScript · Ta
 ## 1. Get the code
 
 ```bash
-git clone <repo-url> subscriptiq
-cd subscriptiq
+git clone https://github.com/arunimanithin/subscription-management-system.git
+cd subscription-management-system
 git checkout feature/<your-branch>      # see table above
 npm install
 ```
