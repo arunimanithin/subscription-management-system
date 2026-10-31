@@ -10,7 +10,7 @@ import type { UserRole } from "@/types/enums";
 export const HOME_BY_ROLE: Record<UserRole, string> = {
   admin: "/dashboard",
   staff: "/dashboard",
-  customer: "/portal",
+  customer: "/customer-portal",
 };
 
 /** Pages anyone may open without signing in. */
@@ -18,6 +18,9 @@ const PUBLIC_PREFIXES = ["/auth", "/health", "/dev"]; // /dev = temporary sign-i
 
 /** Pages a signed-in user has no reason to see (they are sent to their home page instead). */
 const GUEST_ONLY = ["/auth/login", "/auth/register"];
+
+/** The customer-facing area. "/portal" is the older placeholder; "/customer-portal" is the real portal. */
+const CUSTOMER_AREA_PREFIXES = ["/customer-portal", "/portal"];
 
 /** Pages that only admins may open. */
 const ADMIN_ONLY_PREFIXES = ["/users"];
@@ -65,7 +68,7 @@ export function decideRoute({ pathname, search = "", signedIn, role }: GuardInpu
 
   if (pathname === "/") return { action: "redirect", to: HOME_BY_ROLE[role] };
 
-  const inPortal = startsWithPath(pathname, "/portal");
+  const inPortal = CUSTOMER_AREA_PREFIXES.some((p) => startsWithPath(pathname, p));
   if (role === "customer") return inPortal ? { action: "allow" } : { action: "redirect", to: HOME_BY_ROLE.customer };
 
   // admin / staff

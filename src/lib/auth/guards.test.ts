@@ -22,7 +22,7 @@ describe("decideRoute", () => {
   });
 
   it("bounces signed-in users away from login and register, but not from password reset", () => {
-    assert.deepEqual(decideRoute({ pathname: "/auth/login", signedIn: true, role: "customer" }), go("/portal"));
+    assert.deepEqual(decideRoute({ pathname: "/auth/login", signedIn: true, role: "customer" }), go("/customer-portal"));
     assert.deepEqual(decideRoute({ pathname: "/auth/register", signedIn: true, role: "staff" }), go("/dashboard"));
     assert.deepEqual(decideRoute({ pathname: "/auth/reset-password", signedIn: true, role: "customer" }), allow);
     assert.deepEqual(decideRoute({ pathname: "/auth/forgot-password", signedIn: true, role: "admin" }), allow);
@@ -31,20 +31,24 @@ describe("decideRoute", () => {
   it("sends each role to its own home from /", () => {
     assert.deepEqual(decideRoute({ pathname: "/", signedIn: true, role: "admin" }), go("/dashboard"));
     assert.deepEqual(decideRoute({ pathname: "/", signedIn: true, role: "staff" }), go("/dashboard"));
-    assert.deepEqual(decideRoute({ pathname: "/", signedIn: true, role: "customer" }), go("/portal"));
+    assert.deepEqual(decideRoute({ pathname: "/", signedIn: true, role: "customer" }), go("/customer-portal"));
   });
 
   it("keeps customers inside the portal", () => {
     assert.deepEqual(decideRoute({ pathname: "/portal", signedIn: true, role: "customer" }), allow);
     assert.deepEqual(decideRoute({ pathname: "/portal/invoices", signedIn: true, role: "customer" }), allow);
+    for (const p of ["/customer-portal", "/customer-portal/invoices", "/customer-portal/subscriptions"]) {
+      assert.deepEqual(decideRoute({ pathname: p, signedIn: true, role: "customer" }), allow, p);
+    }
     for (const p of ["/dashboard", "/invoices", "/customers/abc", "/users"]) {
-      assert.deepEqual(decideRoute({ pathname: p, signedIn: true, role: "customer" }), go("/portal"), p);
+      assert.deepEqual(decideRoute({ pathname: p, signedIn: true, role: "customer" }), go("/customer-portal"), p);
     }
   });
 
   it("keeps staff and admins out of the customer portal", () => {
     assert.deepEqual(decideRoute({ pathname: "/portal", signedIn: true, role: "staff" }), go("/dashboard"));
     assert.deepEqual(decideRoute({ pathname: "/portal", signedIn: true, role: "admin" }), go("/dashboard"));
+    assert.deepEqual(decideRoute({ pathname: "/customer-portal/payments", signedIn: true, role: "staff" }), go("/dashboard"));
   });
 
   it("allows staff and admins into the staff pages; only admins into /users", () => {
@@ -63,7 +67,7 @@ describe("decideRoute", () => {
   });
 
   it("does not match look-alike paths", () => {
-    assert.deepEqual(decideRoute({ pathname: "/portalx", signedIn: true, role: "customer" }), go("/portal"));
+    assert.deepEqual(decideRoute({ pathname: "/portalx", signedIn: true, role: "customer" }), go("/customer-portal"));
     assert.deepEqual(decideRoute({ pathname: "/usersettings", signedIn: true, role: "staff" }), allow);
     assert.deepEqual(decideRoute({ pathname: "/authx", signedIn: false, role: null }), go("/auth/login?next=%2Fauthx"));
   });

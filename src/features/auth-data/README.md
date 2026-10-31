@@ -27,11 +27,11 @@ Sign in, register, forgot / reset password, sign out, route guards, the signed-i
 |---|---|---|
 | Not signed in | `/auth/*`, `/health` | `/auth/login?next=<page they wanted>` for everything else |
 | Signed in, any role | `/auth/forgot-password`, `/auth/reset-password` | `/auth/login` and `/auth/register` send them to their home page |
-| customer | `/portal` and below | everything else goes to `/portal` |
-| staff | all staff pages | `/portal` and `/users` go to `/dashboard` |
-| admin | all staff pages including `/users` | `/portal` goes to `/dashboard` |
+| customer | `/customer-portal` and below (the old `/portal` placeholder is allowed too) | everything else goes to `/customer-portal` |
+| staff | all staff pages | `/customer-portal` and `/users` go to `/dashboard` |
+| admin | all staff pages including `/users` | `/customer-portal` goes to `/dashboard` |
 
-`/` sends each role to its home page (`/dashboard` for staff and admin, `/portal` for customers). API routes are not redirected; they answer `401` or `403` themselves. The middleware is only the first layer: every API route still calls `authorize()` and Postgres Row Level Security still decides which rows a user can see.
+`/` sends each role to its home page (`/dashboard` for staff and admin, `/customer-portal` for customers). API routes are not redirected; they answer `401` or `403` themselves. The middleware is only the first layer: every API route still calls `authorize()` and Postgres Row Level Security still decides which rows a user can see.
 
 `?next=` accepts only a relative path on this site, so it cannot be used to send someone to another website.
 
