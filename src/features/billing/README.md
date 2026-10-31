@@ -50,7 +50,6 @@ creation. Editing a plan or product later never changes an existing invoice.
 - Filters on `/invoices` and `GET /api/invoices`: status, customer, search, issue/due date ranges.
 - Fixed-amount discount per line ("Or fixed discount" in the invoice form), alternative to the percentage; rules live in `src/lib/money.ts`.
 - `PATCH /api/invoices/:id` edits drafts (API only; there is no edit screen yet).
-- Recurring generation (`/api/invoices/generate`) is Part 4 and still returns 501.
 
 ## Part 4 – Recurring billing
 - Migration `20261031140001_billing_recurring.sql`: `generate_subscription_invoice` – one period of one subscription, invoice + issue + subscription date advance in a single transaction; row-locked, idempotent per period.
@@ -58,3 +57,20 @@ creation. Editing a plan or product later never changes an existing invoice.
 - API: `POST /api/invoices/generate` (one subscription), `POST /api/invoices/generate-due` (everything due). UI: **Run recurring billing** button on `/invoices`.
 - Convention (period starts on `next_billing_date`, inclusive dates, billed in advance, due in 14 days) is documented in CONTRACTS.md for Member 2.
 - Not automatic: nothing runs on a timer yet. Call `generate-due` from the button, or schedule it (Vercel Cron / Supabase pg_cron) – a deployment decision.
+
+## Part 5 – Financial overview, end-to-end test, demo data
+- Migration `20261031150001_billing_financial_reports.sql`: two read-only functions, `billing_financial_summary(from, to)` and `billing_aging(as_of)`. The sums run inside Postgres, so they stay exact for any number of rows; both are `security invoker` (RLS applies, no service-role key).
+- API (admin/staff): `GET /api/invoices/summary?from&to` and `GET /api/invoices/aging?as_of`. Types in `src/features/billing/reports/types.ts`; `getFinancialSummary` / `getAgingReport` are exported from the module index so Member 4's dashboard can reuse them instead of re-implementing the sums.
+- UI: **Financial overview** page at `/invoices/overview` (menu entry "Financial overview"): KPI cards, billed vs collected per month, receivables aging, invoices by status, payments by method, top overdue customers. Range chips: 3 / 6 / 12 months / all time.
+- Definitions
+  - **Billed** = total of invoices *issued* in the period, excluding `draft` and `void`.
+  - **Collected** = `succeeded` payments made in the period (by UTC payment date). Failed and refunded payments are not collected; refunded ones are shown separately.
+  - **Collection rate** = paid so far on the billed invoices ÷ billed (0–1, `null` if nothing billed).
+  - **Outstanding** = balance of every `open` / `partially_paid` / `overdue` invoice *as of today*; **overdue** = the part whose due date has passed. Neither is limited to the period.
+  - **Aging buckets**: not yet due, 1–30, 31–60, 61–90, 90+ days past due.
+  - Amounts of different currencies are never added: every figure is reported per currency.
+  - Default window (no query): current month + 11 before it. Use `from=2000-01-01` for all history.
+- Tests
+  - `npm test` – unit tests (calculations, planner, error mapping, report shaping and validation).
+  - `npm run test:db` – end-to-end billing scenario on an in-memory Postgres with every migration applied (invoice -> recurring run -> partial/full/failed payment -> refund -> void -> overdue sweep -> summary/aging figures -> RLS). One-time setup: `npm install --no-save @electric-sql/pglite` (does not change `package.json`). It does **not** need a Supabase project and does **not** test the HTTP routes or the screens – those were checked by hand against Supabase.
+- Demo data: billing reuses the shared seed (`supabase/seed-demo.sql`, README section 2b) rather than a second one – 67 invoices and 67 payments over 12 months in every status, so every chart and the aging report have something to show. Its totals were cross-checked against the summary function.

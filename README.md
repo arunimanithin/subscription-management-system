@@ -43,7 +43,7 @@ npm run dev          # http://localhost:3000
 
 Open **http://localhost:3000/health** – it shows whether the env vars are set and whether Supabase and the schema are reachable. Without `.env.local` the app still runs (health shows "not configured").
 
-Scripts: `npm run typecheck` · `npm run lint` · `npm run build` · `npm run start`.
+Scripts: `npm run typecheck` · `npm run lint` · `npm run build` · `npm run start` · `npm test` (unit tests) · `npm run test:db` (billing end-to-end test on an in-memory Postgres; first run `npm install --no-save @electric-sql/pglite`).
 Add a shadcn component: `npx shadcn@latest add dialog` (config in `components.json`).
 
 ## 4. What exists right now
