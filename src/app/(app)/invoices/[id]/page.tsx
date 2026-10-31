@@ -1,0 +1,48 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
+import { PageHeader } from "@/components/shared/page-header";
+import { Button } from "@/components/ui/button";
+import { getPageAuth } from "@/features/billing/auth";
+import { AuthNotice } from "@/features/billing/components/auth-notice";
+import { InvoiceDetail } from "@/features/billing/components/invoice-detail";
+import { getInvoice } from "@/features/billing/invoices/service";
+
+export const dynamic = "force-dynamic";
+
+export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const auth = await getPageAuth();
+  if (auth.status !== "ok") {
+    return (
+      <>
+        <PageHeader title="Invoice" />
+        <AuthNotice status={auth.status} />
+      </>
+    );
+  }
+
+  const { data, error } = await getInvoice(auth.supabase, id);
+  if (error) {
+    // PGRST116 = no row (missing, or hidden by RLS); 22P02 = malformed uuid
+    if (error.code === "PGRST116" || error.code === "22P02") notFound();
+    return <p className="text-sm text-destructive">Could not load invoice: {error.message}</p>;
+  }
+
+  return (
+    <>
+      <PageHeader
+        title={data.invoice_number}
+        description="Invoice details"
+        actions={
+          <Button asChild variant="outline" size="sm">
+            <Link href="/invoices">
+              <ArrowLeft /> All invoices
+            </Link>
+          </Button>
+        }
+      />
+      <InvoiceDetail invoice={data} />
+    </>
+  );
+}

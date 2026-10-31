@@ -67,6 +67,7 @@ Relationships: customer 1─* subscriptions, quotations, invoices, payments · p
 
 **Database-enforced behaviour (tested, see section 7 of README):**
 - Payments keep the invoice in sync: `amount_paid` = sum of `succeeded` payments; status becomes `partially_paid` / `paid` / back to `partially_paid`/`open`/`overdue` on refund or failure. Do **not** set `amount_paid` from the app.
+- Invoices are created through `public.create_invoice_with_items(p_invoice jsonb, p_items jsonb)` (security invoker, RLS applies): invoice and items are saved in one transaction and header totals are verified against the lines. Use it instead of inserting into `invoices`/`invoice_items` directly.
 - Overpayment fails with a check violation (`23514`). Payments against `draft`/`void` invoices are rejected.
 - **Snapshots:** when creating any item copy values from the plan; never join to `plans` for historical prices.
 
