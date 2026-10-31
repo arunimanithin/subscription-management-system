@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { authorize, parseBody } from "@/lib/api/guard";
 import { ok, fail, fromSupabaseError } from "@/lib/api/respond";
 import { convertQuotationSchema } from "@/types/schemas";
-import { addInterval, addDays } from "@/lib/billing-period";
+import { addInterval } from "@/lib/billing-period";
 import type { ConvertQuotationResponse } from "@/types/api";
 
 // ---------------------------------------------------------------------------
