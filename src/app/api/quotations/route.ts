@@ -38,7 +38,8 @@ export async function GET(request: NextRequest) {
   }
 
   if (search) {
-    q = q.ilike("quotation_number", `%${search}%`);
+    const pattern = `%${search}%`;
+    q = q.or(`quotation_number.ilike.${pattern},customer.name.ilike.${pattern}`);
   }
 
   const { data, error, count } = await q;

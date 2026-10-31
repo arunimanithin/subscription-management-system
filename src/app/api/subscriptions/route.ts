@@ -39,8 +39,8 @@ export async function GET(request: NextRequest) {
   }
 
   if (search) {
-    // subscription_number direct ilike on the main table
-    q = q.ilike("subscription_number", `%${search}%`);
+    const pattern = `%${search}%`;
+    q = q.or(`subscription_number.ilike.${pattern},customer.name.ilike.${pattern}`);
   }
 
   const { data, error, count } = await q;

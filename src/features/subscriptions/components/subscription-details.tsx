@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { formatCurrency, getSubscriptionTotal, getSubscriptionById, transitionSubscription } from "@/features/subscriptions";
+import {
+  formatCurrency,
+  getSubscriptionById,
+  renewSubscription,
+  transitionSubscription,
+} from "@/features/subscriptions";
+import { calcLine } from "@/lib/money";
 import type { SubscriptionDetail } from "@/types/api";
 
 function formatDate(value: string | null): string {
@@ -51,6 +57,20 @@ export function SubscriptionDetails({ id }: { id: string }) {
     }
   };
 
+  const runRenewal = async () => {
+    if (!subscription) return;
+    const confirmed = window.confirm(`Advance ${subscription.subscription_number} by one billing cycle?`);
+    if (!confirmed) return;
+
+    try {
+      const updated = await renewSubscription(subscription.id);
+      setSubscription(updated);
+      setError(null);
+    } catch (renewalError) {
+      setError(renewalError instanceof Error ? renewalError.message : "Unable to renew subscription");
+    }
+  };
+
   if (loading) {
     return <Card><CardContent className="py-8 text-sm text-muted-foreground">Loading subscription...</CardContent></Card>;
   }
@@ -92,13 +112,18 @@ export function SubscriptionDetails({ id }: { id: string }) {
         <CardHeader>
           <CardTitle>Lifecycle actions</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
-          <Button onClick={() => void runTransition("activate")} disabled={subscription.status !== "draft"}>Activate</Button>
-          <Button variant="outline" onClick={() => void runTransition("pause")} disabled={subscription.status !== "active" && subscription.status !== "trialing"}>Pause</Button>
-          <Button variant="outline" onClick={() => void runTransition("resume")} disabled={subscription.status !== "paused"}>Resume</Button>
-          <Button variant="destructive" onClick={() => void runTransition("cancel")} disabled={!["draft", "trialing", "active", "paused", "past_due"].includes(subscription.status)}>
-            Cancel
-          </Button>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={() => void runTransition("activate")} disabled={subscription.status !== "draft"}>Activate</Button>
+            <Button variant="outline" onClick={() => void runTransition("pause")} disabled={subscription.status !== "active" && subscription.status !== "trialing"}>Pause</Button>
+            <Button variant="outline" onClick={() => void runTransition("resume")} disabled={subscription.status !== "paused"}>Resume</Button>
+            <Button variant="secondary" onClick={() => void runRenewal()} disabled={!["active", "trialing", "past_due"].includes(subscription.status)}>
+              Renew
+            </Button>
+            <Button variant="destructive" onClick={() => void runTransition("cancel")} disabled={!["draft", "trialing", "active", "paused", "past_due"].includes(subscription.status)}>
+              Cancel
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -132,16 +157,25 @@ export function SubscriptionDetails({ id }: { id: string }) {
               </tr>
             </thead>
             <tbody>
-              {subscription.items.map((item) => (
-                <tr key={item.id} className="border-b last:border-b-0">
-                  <td className="px-3 py-2">{item.description}</td>
-                  <td className="px-3 py-2">{item.quantity}</td>
-                  <td className="px-3 py-2">{formatCurrency(item.unit_price, subscription.currency)}</td>
-                  <td className="px-3 py-2">{item.discount_percent ?? 0}%</td>
-                  <td className="px-3 py-2">{item.tax_rate ?? 0}%</td>
-                  <td className="px-3 py-2 text-right">{formatCurrency(getSubscriptionTotal(subscription), subscription.currency)}</td>
-                </tr>
-              ))}
+              {subscription.items.map((item) => {
+                const lineTotal = calcLine({
+                  quantity: item.quantity,
+                  unit_price: item.unit_price,
+                  discount_percent: item.discount_percent ?? 0,
+                  tax_rate: item.tax_rate ?? 0,
+                }).line_total;
+
+                return (
+                  <tr key={item.id} className="border-b last:border-b-0">
+                    <td className="px-3 py-2">{item.description}</td>
+                    <td className="px-3 py-2">{item.quantity}</td>
+                    <td className="px-3 py-2">{formatCurrency(item.unit_price, subscription.currency)}</td>
+                    <td className="px-3 py-2">{item.discount_percent ?? 0}%</td>
+                    <td className="px-3 py-2">{item.tax_rate ?? 0}%</td>
+                    <td className="px-3 py-2 text-right">{formatCurrency(lineTotal, subscription.currency)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </CardContent>

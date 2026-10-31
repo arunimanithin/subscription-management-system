@@ -9,6 +9,7 @@ export {
   createSubscription,
   updateSubscription,
   transitionSubscription,
+  renewSubscription,
   SUBSCRIPTION_STATUS_OPTIONS,
   getSubscriptionPlanLabel,
   getSubscriptionTotal,

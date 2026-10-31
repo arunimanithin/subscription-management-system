@@ -89,6 +89,14 @@ export async function transitionSubscription(
   return payload.data;
 }
 
+export async function renewSubscription(id: string): Promise<SubscriptionDetail> {
+  const payload = await fetchJson<SubscriptionResponse>(`/api/subscriptions/${id}/renew`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  return payload.data;
+}
+
 export function getSubscriptionPlanLabel(subscription: SubscriptionDetail): string {
   const first = subscription.items[0];
   if (!first) return "Custom plan";
