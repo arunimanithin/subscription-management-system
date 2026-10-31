@@ -10,8 +10,17 @@ const PAYABLE = ["open", "partially_paid", "overdue"];
 export function InvoiceDetail({ invoice, canManage = false }: { invoice: InvoiceDetailData; canManage?: boolean }) {
   const money = (n: number) => formatCurrency(n, invoice.currency);
   const payable = PAYABLE.includes(invoice.status) && invoice.amount_due > 0;
+  const daysOverdue = payable ? daysPast(invoice.due_date) : 0;
   return (
     <div className="flex flex-col gap-6">
+      {daysOverdue > 0 ? (
+        <p className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          This invoice is {daysOverdue} day{daysOverdue === 1 ? "" : "s"} past its due date ({formatDate(invoice.due_date)}). Balance due: {money(invoice.amount_due)}.
+        </p>
+      ) : null}
+      {invoice.status === "void" ? (
+        <p className="rounded-md border bg-muted p-3 text-sm text-muted-foreground">This invoice is void. It cannot be paid or edited.</p>
+      ) : null}
       <Card>
         <CardContent className="grid gap-4 md:grid-cols-4">
           <Meta label="Customer">
@@ -46,7 +55,11 @@ export function InvoiceDetail({ invoice, canManage = false }: { invoice: Invoice
                 <td className="px-4 py-3 text-right">{item.quantity}</td>
                 <td className="px-4 py-3 text-right">{money(item.unit_price)}</td>
                 <td className="px-4 py-3 text-right">
-                  {item.discount_percent ? `${item.discount_percent}% (${money(item.discount_amount)})` : "—"}
+                  {item.discount_percent
+                    ? `${item.discount_percent}% (${money(item.discount_amount)})`
+                    : item.discount_amount > 0
+                      ? `${money(item.discount_amount)} (fixed)`
+                      : "—"}
                 </td>
                 <td className="px-4 py-3 text-right">
                   {item.tax_rate ? `${item.tax_rate}% (${money(item.tax_amount)})` : "—"}
@@ -112,6 +125,12 @@ export function InvoiceDetail({ invoice, canManage = false }: { invoice: Invoice
       ) : null}
     </div>
   );
+}
+
+/** Whole days between the due date and today (UTC); 0 when not yet due. */
+function daysPast(due: string): number {
+  const ms = Date.parse(new Date().toISOString().slice(0, 10)) - Date.parse(due.slice(0, 10));
+  return ms > 0 ? Math.round(ms / 86_400_000) : 0;
 }
 
 function Meta({ label, children }: { label: string; children: React.ReactNode }) {

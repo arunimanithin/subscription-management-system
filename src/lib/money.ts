@@ -5,6 +5,8 @@
  *
  * Rules: gross = qty × unit_price; discount applies first; tax is charged on
  * the discounted amount; every amount is rounded to 2 decimals per line.
+ * A line can carry EITHER a percentage discount OR a fixed amount discount (the fixed amount
+ * wins when both are given and is capped at the gross amount, so a line can never go negative).
  */
 
 export const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -13,6 +15,8 @@ export interface LineInput {
   quantity: number;
   unit_price: number;
   discount_percent?: number;
+  /** Fixed discount in currency units for the whole line (not per unit). */
+  discount_amount?: number;
   tax_rate?: number;
 }
 
@@ -26,7 +30,9 @@ export interface LineTotals {
 
 export function calcLine(line: LineInput): LineTotals {
   const gross = round2(line.quantity * line.unit_price);
-  const discount_amount = round2((gross * (line.discount_percent ?? 0)) / 100);
+  const fixed = line.discount_amount ?? 0;
+  const discount_amount =
+    fixed > 0 ? round2(Math.min(fixed, gross)) : round2((gross * (line.discount_percent ?? 0)) / 100);
   const taxable = round2(gross - discount_amount);
   const tax_amount = round2((taxable * (line.tax_rate ?? 0)) / 100);
   return { gross, discount_amount, taxable, tax_amount, line_total: round2(taxable + tax_amount) };

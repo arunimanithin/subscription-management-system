@@ -125,9 +125,10 @@ Roles column: A = admin, S = staff, C = customer (own records only).
 | POST `/api/invoices/:id/transition` | `{ action: issue\|void }` | `InvoiceResponse` | A S | M3 |
 | POST `/api/invoices/generate` | `{ subscription_id, issue_date? }` – builds the invoice for the subscription's current period from its items, advances `next_billing_date`; idempotent per period | `InvoiceResponse` | A S | M3 |
 | POST `/api/invoices/mark-overdue` | – | `MarkOverdueResponse` | A S | M3 |
+
+Invoice lifecycle notes (M3): `transition` `issue` = draft→open (zero-total refused); `void` (optional `reason`, appended to notes) works on draft/open/overdue invoices with **no payments** – refund first, then void; `INVALID_STATE` otherwise. `PATCH /api/invoices/:id` edits **draft** invoices only (`items` replaces all lines and totals are recomputed). `mark-overdue` flags open/partially_paid invoices past `due_date` as `overdue` (idempotent; call from a button, cron or Supabase `pg_cron`). A partially paid invoice past its due date stays `overdue` until fully paid. `GET /api/invoices` filters: `status` (`overdue` also matches anything unpaid and past due), `customer_id`, `search` (number or customer name), `issue_from/to`, `due_from/to`. Invoice lines accept either `discount_percent` **or** a fixed `discount_amount` (whole line, capped at the line amount) – never both.
 | GET, POST `/api/payments` | `createPaymentSchema` | `PaymentListResponse` · `PaymentResponse` (201) | A S (GET also C) | M3 |
 | GET `/api/payments/:id` · POST `/api/payments/:id/refund` | – | `PaymentResponse` | A S | M3 |
-| POST `/api/invoices/:id/transition` | `{action:'issue'}` (Part 2); `'void'` etc. in Part 3 | `InvoiceResponse` | A S | M3 |
 
 Payments notes (M3): `createPaymentSchema` has an optional `idempotency_key` (8–100 chars): repeating a request with the same key returns the original payment (HTTP 200 instead of 201). `GET /api/payments` also accepts `invoice_id` and `status` filters; rows include `invoice_number` and `customer_name`. Payments are recorded through the Postgres function `record_payment` (row-locks the invoice; rejects amounts above the balance due and invoices that are not open/partially_paid/overdue). Refund = `succeeded → refunded`.
 | GET `/api/dashboard/summary` | – | `DashboardSummaryResponse` | A S | M4 |

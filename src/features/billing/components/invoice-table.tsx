@@ -36,7 +36,10 @@ export function InvoiceTable({ rows }: { rows: InvoiceListRow[] }) {
               </td>
               <td className="px-4 py-3">{inv.customer?.name ?? "—"}</td>
               <td className="px-4 py-3">{formatDate(inv.issue_date)}</td>
-              <td className="px-4 py-3">{formatDate(inv.due_date)}</td>
+              <td className="px-4 py-3">
+                {formatDate(inv.due_date)}
+                {pastDueDays(inv) > 0 ? <div className="text-xs text-destructive">{pastDueDays(inv)}d overdue</div> : null}
+              </td>
               <td className="px-4 py-3 text-right">{formatCurrency(inv.total, inv.currency)}</td>
               <td className="px-4 py-3 text-right">{formatCurrency(inv.amount_due, inv.currency)}</td>
               <td className="px-4 py-3">
@@ -48,4 +51,11 @@ export function InvoiceTable({ rows }: { rows: InvoiceListRow[] }) {
       </table>
     </Card>
   );
+}
+
+/** Days past the due date for invoices that still owe money (UTC); 0 otherwise. */
+function pastDueDays(inv: InvoiceListRow): number {
+  if (!["open", "partially_paid", "overdue"].includes(inv.status) || inv.amount_due <= 0) return 0;
+  const ms = Date.parse(new Date().toISOString().slice(0, 10)) - Date.parse(inv.due_date.slice(0, 10));
+  return ms > 0 ? Math.round(ms / 86_400_000) : 0;
 }

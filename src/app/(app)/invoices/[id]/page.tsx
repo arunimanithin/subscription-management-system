@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { getPageAuth } from "@/features/billing/auth";
 import { AuthNotice } from "@/features/billing/components/auth-notice";
-import { IssueInvoiceButton } from "@/features/billing/components/invoice-actions";
+import { IssueInvoiceButton, VoidInvoiceButton } from "@/features/billing/components/invoice-actions";
 import { InvoiceDetail } from "@/features/billing/components/invoice-detail";
 import { getInvoice } from "@/features/billing/invoices/service";
 
@@ -39,6 +39,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         actions={
           <>
             {canManage && data.status === "draft" ? <IssueInvoiceButton invoiceId={data.id} /> : null}
+            {canManage && ["draft", "open", "overdue"].includes(data.status) && data.amount_paid <= 0 ? <VoidInvoiceButton invoiceId={data.id} /> : null}
             <Button asChild variant="outline" size="sm">
               <Link href="/invoices">
                 <ArrowLeft /> All invoices

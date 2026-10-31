@@ -3,7 +3,7 @@ import { authorize, parseBody, parseQuery } from "@/lib/api/guard";
 import { fail, fromSupabaseError, list, ok } from "@/lib/api/respond";
 import { createInvoice, listInvoices } from "@/features/billing/invoices/service";
 import { INVOICE_STATUSES } from "@/types/enums";
-import { createInvoiceSchema, listQuerySchema } from "@/types/schemas";
+import { createInvoiceSchema, invoiceListQuerySchema } from "@/types/schemas";
 
 // Owner: Member 3 (billing). Contract: CONTRACTS.md section 4.
 
@@ -11,7 +11,7 @@ import { createInvoiceSchema, listQuerySchema } from "@/types/schemas";
 export async function GET(request: NextRequest) {
   const auth = await authorize();
   if (!auth.ok) return auth.response;
-  const query = parseQuery(request, listQuerySchema);
+  const query = parseQuery(request, invoiceListQuerySchema);
   if (!query.ok) return query.response;
 
   const { status } = query.data;

@@ -42,3 +42,12 @@ creation. Editing a plan or product later never changes an existing invoice.
 - Issue invoice: `POST /api/invoices/:id/transition {action:"issue"}` (draft → open; zero-total invoices refused).
 - UI: record-payment form + refund buttons on the invoice page (admin/staff only), `/payments` history with status filter and pagination.
 - Customers cannot create payments (staff-only); a customer "pay now" flow is a later decision.
+
+## Part 3 – Lifecycle, overdue tracking, filters, fixed discounts
+- Migration `20261031130001_billing_lifecycle.sql`: `void_invoice`, `mark_overdue_invoices`, `update_draft_invoice`, and an updated `recompute_invoice_payment_state` (a partially paid invoice past its due date stays `overdue`).
+- Void: only draft/open/overdue invoices with no payments (refund first). Reason is appended to the notes. Voided invoices cannot be paid or edited.
+- Overdue: "Update overdue" button (or `POST /api/invoices/mark-overdue`) flags past-due invoices; the list also shows "Nd overdue" and the `overdue` filter is accurate even before the sweep runs.
+- Filters on `/invoices` and `GET /api/invoices`: status, customer, search, issue/due date ranges.
+- Fixed-amount discount per line ("Or fixed discount" in the invoice form), alternative to the percentage; rules live in `src/lib/money.ts`.
+- `PATCH /api/invoices/:id` edits drafts (API only; there is no edit screen yet).
+- Recurring generation (`/api/invoices/generate`) is Part 4 and still returns 501.

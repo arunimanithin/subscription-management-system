@@ -29,7 +29,7 @@ export interface PlanOption {
   product_name: string;
 }
 
-const emptyLine = { plan_id: null, product_id: null, description: "", quantity: 1, unit_price: 0, discount_percent: 0, tax_rate: 0 };
+const emptyLine = { plan_id: null, product_id: null, description: "", quantity: 1, unit_price: 0, discount_percent: 0, discount_amount: 0, tax_rate: 0 };
 
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
 
@@ -61,6 +61,7 @@ export function InvoiceForm({ customers, plans }: { customers: CustomerOption[];
     quantity: num(l?.quantity),
     unit_price: num(l?.unit_price),
     discount_percent: num(l?.discount_percent),
+    discount_amount: num(l?.discount_amount),
     tax_rate: num(l?.tax_rate),
   }));
   const totals = calcTotals(lines);
@@ -152,16 +153,19 @@ export function InvoiceForm({ customers, plans }: { customers: CustomerOption[];
                 <Field label="Qty" error={lineErrors?.quantity?.message} className="md:col-span-2">
                   <Input type="number" step="0.01" min="0" {...register(`items.${index}.quantity`, { valueAsNumber: true })} />
                 </Field>
-                <Field label="Unit price" error={lineErrors?.unit_price?.message} className="md:col-span-3">
+                <Field label="Unit price" error={lineErrors?.unit_price?.message} className="md:col-span-2">
                   <Input type="number" step="0.01" min="0" {...register(`items.${index}.unit_price`, { valueAsNumber: true })} />
                 </Field>
                 <Field label="Discount %" error={lineErrors?.discount_percent?.message} className="md:col-span-2">
                   <Input type="number" step="0.01" min="0" max="100" {...register(`items.${index}.discount_percent`, { valueAsNumber: true })} />
                 </Field>
+                <Field label="Or fixed discount" error={lineErrors?.discount_amount?.message} className="md:col-span-2">
+                  <Input type="number" step="0.01" min="0" {...register(`items.${index}.discount_amount`, { valueAsNumber: true })} />
+                </Field>
                 <Field label="Tax %" error={lineErrors?.tax_rate?.message} className="md:col-span-2">
                   <Input type="number" step="0.01" min="0" max="100" {...register(`items.${index}.tax_rate`, { valueAsNumber: true })} />
                 </Field>
-                <div className="flex items-end justify-between gap-2 md:col-span-3">
+                <div className="flex items-end justify-between gap-2 md:col-span-2">
                   <div className="text-sm">
                     <div className="text-xs text-muted-foreground">Line total</div>
                     <div className="font-medium">{formatCurrency(line.line_total)}</div>

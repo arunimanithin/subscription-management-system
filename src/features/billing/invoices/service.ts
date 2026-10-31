@@ -2,8 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { toRange } from "@/lib/api/respond";
 import type { Customer, Invoice } from "@/types/entities";
 import type { InvoiceDetail } from "@/types/api";
-import { buildInvoicePayload } from "./build-invoice";
-import type { CreateInvoiceInput } from "./types";
+import { buildInvoicePayload, buildInvoiceUpdatePayload } from "./build-invoice";
+import type { CreateInvoiceInput, UpdateInvoiceInput } from "./types";
 
 type DbError = { code?: string; message: string };
 type Result<T> = { data: T; error: null } | { data: null; error: DbError };
@@ -14,8 +14,16 @@ export interface ListInvoicesParams {
   page: number;
   page_size: number;
   search?: string;
+  /** Any invoice status, or the pseudo-status "overdue" = unpaid balance and due date already passed. */
   status?: string;
+  customer_id?: string;
+  issue_from?: string;
+  issue_to?: string;
+  due_from?: string;
+  due_to?: string;
 }
+
+const todayUtc = () => new Date().toISOString().slice(0, 10);
 
 /** Paginated invoice list. RLS decides what the caller may see (customers: own, non-draft). */
 export async function listInvoices(
@@ -29,11 +37,28 @@ export async function listInvoices(
     .order("created_at", { ascending: false })
     .range(from, to);
 
-  if (params.status) query = query.eq("status", params.status);
+  if (params.status === "overdue") {
+    // Accurate even before the overdue sweep has run: still owes money and the due date has passed.
+    query = query.in("status", ["open", "partially_paid", "overdue"]).lt("due_date", todayUtc());
+  } else if (params.status) {
+    query = query.eq("status", params.status);
+  }
+  if (params.customer_id) query = query.eq("customer_id", params.customer_id);
+  if (params.issue_from) query = query.gte("issue_date", params.issue_from);
+  if (params.issue_to) query = query.lte("issue_date", params.issue_to);
+  if (params.due_from) query = query.gte("due_date", params.due_from);
+  if (params.due_to) query = query.lte("due_date", params.due_to);
   if (params.search) {
     // strip characters that have meaning inside a PostgREST filter expression
-    const term = params.search.replace(/[%,()*]/g, " ").trim();
-    if (term) query = query.ilike("invoice_number", `%${term}%`);
+    const term = params.search.replace(/[%,()*\\]/g, " ").trim();
+    if (term) {
+      // match the invoice number OR the customer name
+      const { data: matches } = await supabase.from("customers").select("id").ilike("name", `%${term}%`).limit(50);
+      const ids = (matches ?? []).map((c: { id: string }) => c.id);
+      query = ids.length
+        ? query.or(`invoice_number.ilike.%${term}%,customer_id.in.(${ids.join(",")})`)
+        : query.ilike("invoice_number", `%${term}%`);
+    }
   }
 
   const { data, error, count } = await query;
@@ -72,8 +97,7 @@ export async function createInvoice(supabase: SupabaseClient, input: CreateInvoi
 
 /**
  * Issue a draft invoice (draft -> open). The conditional update only matches a draft, so issuing
- * twice or issuing a non-draft is rejected instead of silently succeeding. Full lifecycle
- * (void, overdue) comes in Part 3.
+ * twice or issuing a non-draft is rejected instead of silently succeeding.
  */
 export async function issueInvoice(
   supabase: SupabaseClient,
@@ -106,4 +130,29 @@ export async function issueInvoice(
     return { data: null, error: { message: "The invoice was changed by someone else; reload and try again" }, invalidState: "changed" };
   }
   return getInvoice(supabase, id);
+}
+
+/** Void a draft / open / overdue invoice that has no payments (public.void_invoice). */
+export async function voidInvoice(supabase: SupabaseClient, id: string, reason?: string): Promise<Result<InvoiceDetail>> {
+  const { error } = await supabase.rpc("void_invoice", { p_invoice_id: id, p_reason: reason ?? null });
+  if (error) return { data: null, error };
+  return getInvoice(supabase, id);
+}
+
+/**
+ * Edit a DRAFT invoice (public.update_draft_invoice). Only the supplied fields change; supplying
+ * `items` replaces all lines and recomputes the totals on the server.
+ */
+export async function updateDraftInvoice(supabase: SupabaseClient, id: string, input: UpdateInvoiceInput): Promise<Result<InvoiceDetail>> {
+  const { invoice, items } = buildInvoiceUpdatePayload(input);
+  const { error } = await supabase.rpc("update_draft_invoice", { p_invoice_id: id, p_invoice: invoice, p_items: items });
+  if (error) return { data: null, error };
+  return getInvoice(supabase, id);
+}
+
+/** Marks open / partially paid invoices past their due date as overdue. Returns how many changed. */
+export async function markOverdueInvoices(supabase: SupabaseClient): Promise<Result<number>> {
+  const { data, error } = await supabase.rpc("mark_overdue_invoices");
+  if (error) return { data: null, error };
+  return { data: Number(data ?? 0), error: null };
 }

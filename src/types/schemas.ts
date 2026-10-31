@@ -137,6 +137,21 @@ export const convertQuotationSchema = z.object({
 
 /* ---------- invoices (Member 3) ---------- */
 
+/**
+ * Invoice line = shared line + an optional FIXED discount (amount for the whole line).
+ * Use either discount_percent or discount_amount, not both. Stored on invoice_items.discount_amount.
+ */
+export const invoiceLineInputSchema = lineItemInputSchema
+  .extend({ discount_amount: money.default(0) })
+  .superRefine((line, ctx) => {
+    if (line.discount_amount > 0 && line.discount_percent > 0) {
+      ctx.addIssue({ code: "custom", path: ["discount_amount"], message: "Use either a percentage or a fixed discount, not both" });
+    }
+    if (line.discount_amount > Math.round(line.quantity * line.unit_price * 100) / 100) {
+      ctx.addIssue({ code: "custom", path: ["discount_amount"], message: "A fixed discount cannot exceed the line amount" });
+    }
+  });
+
 export const createInvoiceSchema = z.object({
   customer_id: uuid,
   subscription_id: uuid.nullish(),
@@ -146,10 +161,22 @@ export const createInvoiceSchema = z.object({
   period_start: isoDate.nullish(),
   period_end: isoDate.nullish(),
   notes: optionalText,
-  items: z.array(lineItemInputSchema).min(1),
+  items: z.array(invoiceLineInputSchema).min(1),
 });
 export const updateInvoiceSchema = createInvoiceSchema.partial(); // draft invoices only
-export const invoiceTransitionSchema = z.object({ action: z.enum(INVOICE_ACTIONS) });
+export const invoiceTransitionSchema = z.object({
+  action: z.enum(INVOICE_ACTIONS),
+  /** void only: optional reason, appended to the invoice notes */
+  reason: z.string().trim().max(500).optional(),
+});
+/** Extra filters for GET /api/invoices (Member 3). */
+export const invoiceListQuerySchema = listQuerySchema.extend({
+  customer_id: uuid.optional(),
+  issue_from: isoDate.optional(),
+  issue_to: isoDate.optional(),
+  due_from: isoDate.optional(),
+  due_to: isoDate.optional(),
+});
 export const generateInvoiceSchema = z.object({
   subscription_id: uuid,
   issue_date: isoDate.optional(), // defaults to today
