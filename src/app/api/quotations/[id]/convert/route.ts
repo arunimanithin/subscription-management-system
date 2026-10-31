@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { authorize, parseBody } from "@/lib/api/guard";
 import { ok, fail, fromSupabaseError } from "@/lib/api/respond";
 import { convertQuotationSchema } from "@/types/schemas";
-import { addInterval } from "@/lib/billing-period";
+import { addDays, addInterval } from "@/lib/billing-period";
 import type { ConvertQuotationResponse } from "@/types/api";
 
 // ---------------------------------------------------------------------------
@@ -54,7 +54,10 @@ export async function POST(
   }
 
   // Compute billing dates for the new subscription
-  const periodEnd = addInterval(start_date, billing_interval, interval_count);
+  // Billing convention (see CONTRACTS.md / billing README): billed in advance, dates inclusive.
+  // The first period is [start_date, start_date + interval - 1 day] and is still unbilled,
+  // so next_billing_date is start_date itself.
+  const periodEnd = addDays(addInterval(start_date, billing_interval, interval_count), -1);
 
   // Create the subscription (draft status — activate separately via /transition)
   const { data: sub, error: subError } = await supabase
@@ -67,7 +70,7 @@ export async function POST(
       start_date,
       current_period_start: start_date,
       current_period_end: periodEnd,
-      next_billing_date: periodEnd,
+      next_billing_date: start_date,
       created_by: profile.id,
       // status = 'draft' (DB default) — staff activates it manually
     })

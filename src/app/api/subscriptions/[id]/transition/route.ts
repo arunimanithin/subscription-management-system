@@ -55,10 +55,14 @@ export async function POST(
       // Determine if a trial period applies
       const trialEnd = sub.trial_end_date as string | null;
       const newStatus: SubscriptionStatus = trialEnd ? "trialing" : "active";
-      const periodStart = today;
-      const periodEnd = addInterval(today, sub.billing_interval, sub.interval_count);
-      // next_billing_date: after trial if trialing, otherwise after the first period
-      const nextBilling = trialEnd ? addDays(trialEnd, 1) : periodEnd;
+      // Billing convention (see CONTRACTS.md / billing README): billed in advance, dates inclusive.
+      // The first billable period starts on start_date and is still unbilled, so next_billing_date = start_date.
+      // With a trial, the first invoice is due the day after the trial ends.
+      const periodStart = (sub.start_date as string | null) ?? today;
+      const periodEnd = trialEnd
+        ? trialEnd
+        : addDays(addInterval(periodStart, sub.billing_interval, sub.interval_count), -1);
+      const nextBilling = trialEnd ? addDays(trialEnd, 1) : periodStart;
 
       patch = {
         status: newStatus,
