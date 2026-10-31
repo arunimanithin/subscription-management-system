@@ -87,6 +87,14 @@ export default function SignPage() {
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
+            <div className="text-right">
+  <Link
+    href="/auth/forgot-password"
+    className="text-sm font-medium text-blue-600 underline"
+  >
+    Forgot password?
+  </Link>
+</div>
           </div>
 
           {error && (
