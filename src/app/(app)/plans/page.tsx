@@ -1,5 +1,11 @@
-import { ModulePlaceholder } from "@/components/shared/module-placeholder";
+import { PageHeader } from "@/components/shared/page-header";
+import { PlansScreen } from "@/features/auth-data/components/plans-screen";
 
 export default function PlansPage() {
-  return <ModulePlaceholder module="authData" title="Plans" description="Pricing plans and billing intervals." />;
+  return (
+    <>
+      <PageHeader title="Plans" description="Priced plans with billing interval, trial days, setup fee and tax rate." />
+      <PlansScreen />
+    </>
+  );
 }

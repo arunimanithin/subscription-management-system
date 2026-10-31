@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Repeat2 } from "lucide-react";
 import { NAV_ITEMS } from "@/config/navigation";
 import { cn } from "@/lib/utils";
+import { SignOutButton } from "@/features/auth-data";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -31,6 +32,7 @@ export function Sidebar() {
           })}
         </nav>
         <div className="mt-auto border-t px-5 py-3 text-xs text-muted-foreground">
+          <SignOutButton className="mb-3" />
           <Link href="/health" className="hover:underline">
             System health
           </Link>
