@@ -5,3 +5,6 @@
 export { intelligenceNav } from "./nav";
 export { AdminDashboardView } from "./dashboard/admin-dashboard-view";
 export { getDashboardData } from "./services/dashboard-service";
+export { LeakRadarView } from "./radar/leak-radar-view";
+export { getLeakRadarData } from "./services/leak-radar-service";
+export { calculateHealthScore } from "./services/healthScore";
