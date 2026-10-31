@@ -24,11 +24,12 @@ src/
     layout/              SHARED  AppShell, Sidebar
   config/                SHARED  modules.ts (ownership), navigation.ts (aggregates feature nav files)
   middleware.ts          M1      session refresh (keep) + route guards (add)
-  features/              ONE FOLDER PER MEMBER – put components, services, hooks here
-    auth-data/           M1      nav.ts, index.ts, components/, services/, auth/ customers/ products/ plans/ users/
-    subscriptions/       M2      subscriptions/ quotations/
-    billing/             M3      invoices/ payments/ overdue/
-    intelligence/        M4      dashboard/ analytics/ portal/
+  features/              ONE FOLDER PER MEMBER – each has nav.ts + index.ts; add components/, services/,
+                         hooks/ or per-domain subfolders yourself when you need them
+    auth-data/           M1      auth, customers, products, plans, users
+    subscriptions/       M2      subscriptions, quotations
+    billing/             M3      invoices, payments, overdue
+    intelligence/        M4      dashboard, analytics, portal
   app/
     layout.tsx, page.tsx, globals.css       SHARED
     health/page.tsx, api/health/route.ts    SHARED (health check)
